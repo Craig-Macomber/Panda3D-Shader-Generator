@@ -1,14 +1,11 @@
 :Info
-name    expose
-place   fshader
-
-:fshaderparams
-out float4 o_color : COLOR
-in uniform float4 k_exposure
+place   color
 
 :Params
-inout float4 o_color
+inout float4 color
+
+:fshaderparams
 in uniform float4 k_exposure
 
 :Shader
-o_color.xyz*=k_exposure.x;
+color.xyz*=k_exposure.x;

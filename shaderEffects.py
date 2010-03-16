@@ -253,13 +253,19 @@ class ShaderEffect:
             
         return ShaderEffect.applySubEffectsCache[key]
         
-def loadEffectFromFile(path):
+def loadEffectFromFile(path,name):
     """
     Build effect from an effects file
+    path should be containing folder
+    name is filename without '.txt'
+    
     """
+    path=path+'/'+name+'.txt'
     d=parseFile(path)
 
-    if 'info' in d and 'shader' in d and 'params' in d:
+    if 'info' in d and 'shader' in d:
+        if 'params' not in d: d['params']=[]
+        
         source='\n'.join(d['shader'])
         params=[ShaderEffectParam(t) for t in d['params']]
         info=dict([t.split() for t in d['info']])
@@ -267,13 +273,9 @@ def loadEffectFromFile(path):
             print 'error: place not specified in effects file '+path
             return
         
-        if 'name' in info:
-            name=info['name']
-        else:
-            name='unnamed'
         
         
-        shaderParams={}
+        shaderParams=[]
         
         for p in shaderParamPlaces:
             if p in d:
@@ -295,11 +297,16 @@ def loadEffectFromFile(path):
                     out|=t[0]=='out'
                     xin|=t[0]=='in'
                     type=' '.join(t[1:-1])
-                    shaderParams[shaderParamName]=ShaderParam(p,shaderParamName,type,xin,out,semantic=semantic)
+                    shaderParams.append(ShaderParam(p,shaderParamName,type,xin,out,semantic=semantic))
         
-        for p in params:
-            if p.name in shaderParams:
-                p.shaderParam=shaderParams[p.name]
+        paramNames=set([p.name for p in params])
+        for p in shaderParams:
+            if p.name in paramNames:
+                print "error: conflicting param and shaderParam "+p.name+" in "+path
+            else:
+                paramNames.add(p.name)
+                params.append(ShaderEffectParam(p.defCode(True),p))
+        
                 
         return ShaderEffect(name, info['place'], source, params)
         
@@ -346,18 +353,9 @@ class ShaderParam:
         
         return ShaderParam(self.place,self.name,self.type,self.xin or other.xin, self.out or other.out, self.shaderInput)
     
-    '''
-    def __eq__(self,other):
-        return other.defCode()==self.defCode()
-        
-    def __ne__(self, other):
-        result = self.__eq__(other)
-        if result is NotImplemented:
-            return result
-        return not result'''
     
-    def defCode(self):
-        return ('in' if self.xin else '')+('out ' if self.out else ' ')+self.type+' '+self.name+(' : '+self.semantic if self.semantic else '')
+    def defCode(self,skipSemantic=False):
+        return ('in' if self.xin else '')+('out ' if self.out else ' ')+self.type+' '+self.name+(' : '+self.semantic if self.semantic and not skipSemantic else '')
 
 class ShaderEffectParam:
     def __init__(self,defCode,shaderParam=None):
@@ -408,7 +406,7 @@ def applyShaderEffectPlacements(baseNode,ShaderEffectPlacements,baseShader,effec
     
     # Build nodeDict
     for p in ShaderEffectPlacements:
-        traverseTree(p.baseNode,p)
+        traverseTree(baseNode,p)
     
     
     def applyToTree(currentNode,parentShader):

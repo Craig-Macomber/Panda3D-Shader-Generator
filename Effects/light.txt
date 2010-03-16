@@ -1,16 +1,12 @@
 :Info
-name    light
-place   fshader
-
-:fshaderparams
-out float4 o_color : COLOR
+place   color
 
 :Params
-inout float4 o_color
+inout float4 color
 
 :Shader
 float3 diffuseLight=float3(1,1,1);
 //<diffuseLight>//
 float3 specularLight=float3(0,0,0);
 //<specularLight>//
-o_color=float4(o_color.xyz*diffuseLight+specularLight,o_color.w);
+color=float4(color.xyz*diffuseLight+specularLight,color.w);

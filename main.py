@@ -63,54 +63,54 @@ def walkTree(node):
 #for n in walkTree(render):
 #    n.clearTransparency()
 
-render.setTransparency(TransparencyAttrib.MNone,100)
 
-def getEffect(name):
-    return loadEffectFromFile('Effects/'+name+'.txt')
-
-
-baseShader=readFile('base.sha').read()
-basicEffects=[getEffect('basicProject'),getEffect('basicTex')]
-
-
-
-
-environ.setShaderInput('tintColor',Vec4(.5,.5,0,1))
+# Setup an interesting scene graph to run effects on:
+environ.setShaderInput('tintColor',Vec4(.2,.3,.5,1))
 #pandaActor.setShaderInput('tintColor',Vec4(0,0,.2,1))
 
-pandaActor.setShaderInput('ambient',Vec4(2,.5,.2,1))
+pandaActor.setShaderInput('ambient',Vec4(1,.5,.2,1))
 render.setShaderInput('exposure',2)
 render.setShaderInput('transparancyThreshold',.5)
 
+render.setTransparency(TransparencyAttrib.MNone,100)
 
-tintFilter=effectPlacement.ExcludeNodes([environ.getChild(0).getChild(0),environ.find('**/OuterBamboo')]) and effectPlacement.RequireShaderInputs(['tintColor'])
+
+
+# Do some effects!
+
+def getEffect(name):
+    return loadEffectFromFile('Effects',name)
+
+
+baseShader=readFile('base.sha').read()
+
+
+basicProject=effectPlacement.Placement(getEffect('basicProject'))
+
+
+tintFilter=effectPlacement.ExcludeNodes([environ.getChild(0).getChild(0),environ.find('**/OuterBamboo')]) & effectPlacement.RequireShaderInputs(['tintColor'])
+tint=effectPlacement.Placement(getEffect('tint'),tintFilter)
 
 normalFilter=effectPlacement.RequireVertexProperties(['normal'])
 
-light=effectPlacement.Placement(render,getEffect('light'),normalFilter)
-
+light=effectPlacement.Placement(getEffect('light'),normalFilter)
 ambientFilter=effectPlacement.RequireShaderInputs(['ambient'])
-
-ambient=effectPlacement.Placement(render,getEffect('ambientLight'),ambientFilter)
-
+ambient=effectPlacement.Placement(getEffect('ambientLight'),ambientFilter)
 light.subEffects.append(ambient)
+expose=effectPlacement.Placement(getEffect('expose'),effectPlacement.RequireShaderInputs(['exposure']))
+overBrightToAlpha=effectPlacement.Placement(getEffect('overBrightToAlpha'))
+transparancyThreshold=effectPlacement.Placement(getEffect('transparancyThreshold'),effectPlacement.RequireShaderInputs(['transparancyThreshold']))
 
-expose=effectPlacement.Placement(render,getEffect('expose'),effectPlacement.RequireShaderInputs(['exposure']))
-overBrightToAlpha=effectPlacement.Placement(render,getEffect('overBrightToAlpha'))
-
-transparancyThreshold=effectPlacement.Placement(render,getEffect('transparancyThreshold'),effectPlacement.RequireShaderInputs(['transparancyThreshold']))
+basicTex=effectPlacement.Placement(getEffect('basicTex'))
 
 
-#factor=effectPlacement.RequireTextures(['black'])
 
-tint=effectPlacement.Placement(render,getEffect('tint'),tintFilter)
+color=effectPlacement.Placement(getEffect('color'))
+color.subEffects.extend([basicTex,transparancyThreshold,tint,light,expose,overBrightToAlpha])
 
-effectPlacements=[effectPlacement.Placement(render,e) for e in basicEffects]
-effectPlacements.append(transparancyThreshold)
-effectPlacements.append(tint)
-effectPlacements.append(light)
-effectPlacements.append(expose)
-effectPlacements.append(overBrightToAlpha)
+
+
+effectPlacements=[basicProject,color]
 
 applyShaderEffectPlacements(render,effectPlacements,baseShader,False)
 
@@ -118,6 +118,6 @@ applyShaderEffectPlacements(render,effectPlacements,baseShader,False)
 from direct.filter.CommonFilters import CommonFilters
 # Filter to display the alpha channel as bloom.
 filters = CommonFilters(base.win, base.cam)
-filterok = filters.setBloom(blend=(0,0,0,1), desat=0.5, intensity=0.5, size="large",mintrigger=0.6, maxtrigger=1.0)
+filterok = filters.setBloom(blend=(0,0,0,1), desat=0.5, intensity=2.5, size="large",mintrigger=0.6, maxtrigger=1.0)
 
 run()

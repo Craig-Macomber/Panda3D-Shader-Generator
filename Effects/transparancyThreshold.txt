@@ -1,16 +1,14 @@
 :Info
-name    transparancyThreshold
-place   fshader
+place   color
 
 :fshaderparams
-out float4 o_color : COLOR
 in uniform float4 k_transparancyThreshold
+
 
 :Params
-in float4 o_color
-in uniform float4 k_transparancyThreshold
+in float4 color
 
 :Shader
-if (o_color.w<k_transparancyThreshold.x){
+if (color.w<k_transparancyThreshold.x){
 discard;
 }

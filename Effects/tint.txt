@@ -1,14 +1,11 @@
 :Info
-name    tint
-place   fshader
-
-:fshaderparams
-out float4 o_color : COLOR
-in uniform float4 k_tintColor
+place   color
 
 :Params
-inout float4 o_color
+inout float4 color
+
+:fshaderparams
 in uniform float4 k_tintColor
 
 :Shader
-o_color=o_color*k_tintColor;
+color*=k_tintColor;

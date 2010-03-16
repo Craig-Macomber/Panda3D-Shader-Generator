@@ -1,7 +1,7 @@
 from filter import *
 
 class Placement:
-    def __init__(self,baseNode,shaderEffect,filter=includeAll,subEffects=None):
+    def __init__(self,shaderEffect,filter=includeAll,subEffects=None):
         """
         filter is an optional Filter to specify which nodes this placement should apply to
         subEffects is optional list of Placements to go inside this one. Repersents effects
@@ -10,8 +10,6 @@ class Placement:
         
         """
         
-        
-        self.baseNode=baseNode
         self.shaderEffect=shaderEffect
         self.filter=filter
         
@@ -27,29 +25,16 @@ class Placement:
 
 # appliesTo could return something special to signal not to bother checking child nodes. This would speed things up.
 
-'''
-class Funct:
-    def __init__(self,funct,ops,keepList=False):
-        self.funct=funct
-        self.ops=ops
-        self.keepList=keepList
-    def appliesTo(self,node):
-        l=[op.appliesTo(node) for op in self.ops]
-        return self.funct(l) if self.keepList else self.funct(*l)
 
 
-class And(Funct):
-    def __init__(self,a,b):
-        Funct.__init__(self, all, (a,b), True)
-
-class Or(Funct):
-    def __init__(self,a,b):
-        Funct.__init__(self, any, (a,b), True)
-
-class Not(Funct):
-    def __init__(self,a):
-        Funct.__init__(self,lambda a : not a,(a))
-'''
+class IncludeNodes(Filter):
+    """ includes listed nodes, and all below them"""
+    def __init__(self,includeNodes):
+        self.includeNodes=includeNodes
+    def __call__(self,node):
+        for n in self.includeNodes:
+            if n.isAncestorOf(node): return True
+        return False
 
 class ExcludeNodes(Filter):
     """ Excludes listed nodes, and all below them"""

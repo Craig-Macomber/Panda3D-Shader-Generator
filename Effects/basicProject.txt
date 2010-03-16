@@ -1,6 +1,5 @@
 :Info
 place   vshader
-name    basicProject
 
 :vshaderParams
 in uniform float4x4 mat_modelproj
@@ -8,13 +7,6 @@ in float4 vtx_position : POSITION
 out float4 l_position : POSITION
 in float2 vtx_texcoord0 : TEXCOORD0
 out float2 l_tex: TEXCOORD0
-
-:Params
-in float4x4 mat_modelproj
-in float4 vtx_position
-out float4 l_position
-in float2 vtx_texcoord0
-out float2 l_tex
 
 :Shader
 l_position = mul(mat_modelproj, vtx_position);

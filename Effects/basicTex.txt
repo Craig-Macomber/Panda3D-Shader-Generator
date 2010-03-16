@@ -5,21 +5,16 @@
 # This section lists various values in the form
 # valueName (whitespace) value
 
-# the name of this effect
-name    basicTexturing
 # place it is applied/injected into the base shader.
-place   fshader
+place   color
 
 
 :fshaderparams
-out float4 o_color : COLOR
 in float2 l_tex: TEXCOORD0
 in uniform sampler2D tex_0: TEXUNIT0
 
 :Params
-out float4 o_color
-in float2 l_tex
-in uniform sampler2D tex_0
+out float4 color
 
 :Shader
-o_color=tex2D(tex_0,l_tex);
+color=tex2D(tex_0,l_tex);
