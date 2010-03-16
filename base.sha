@@ -1,0 +1,20 @@
+//Cg
+// Shader Generator Base Shader //
+
+
+//<__methods__>//
+
+void vshader(
+//<__vshaderparams__>//
+)
+{
+//<vshader>//
+}
+
+
+void fshader( 
+//<__fshaderparams__>//
+) 
+{ 
+//<fshader>//
+} 

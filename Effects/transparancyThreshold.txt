@@ -1,0 +1,16 @@
+:Info
+name    transparancyThreshold
+place   fshader
+
+:fshaderparams
+out float4 o_color : COLOR
+in uniform float4 k_transparancyThreshold
+
+:Params
+in float4 o_color
+in uniform float4 k_transparancyThreshold
+
+:Shader
+if (o_color.w<k_transparancyThreshold.x){
+discard;
+}

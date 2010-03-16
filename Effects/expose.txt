@@ -1,0 +1,14 @@
+:Info
+name    expose
+place   fshader
+
+:fshaderparams
+out float4 o_color : COLOR
+in uniform float4 k_exposure
+
+:Params
+inout float4 o_color
+in uniform float4 k_exposure
+
+:Shader
+o_color.xyz*=k_exposure.x;

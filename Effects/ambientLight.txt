@@ -1,0 +1,13 @@
+:Info
+name    ambientLight
+place   diffuseLight
+
+:fshaderparams
+in uniform float4 k_ambient
+
+:Params
+inout float3 diffuseLight
+in uniform float4 k_ambient
+
+:Shader
+diffuseLight=k_ambient.xyz;

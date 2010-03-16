@@ -1,0 +1,21 @@
+:Info
+name    overBrightToAlpha
+place   fshader
+
+:fshaderparams
+out float4 o_color : COLOR
+
+:Params
+inout float4 o_color
+
+:Shader
+float maxBrightness=2.0;
+
+float4 c=o_color;
+c=c*maxBrightness;
+
+//bloom using brigtness past 1
+float b=max(max(c.x,c.y),c.z);
+c.w=b/maxBrightness;
+
+o_color=c;

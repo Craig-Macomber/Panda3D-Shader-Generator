@@ -1,0 +1,25 @@
+# A simple example effect
+# Lines prefixed with : define sections
+# in general, avoid naming anything srarting with an _ because that tends to be used by the code generator for various things.
+:Info
+# This section lists various values in the form
+# valueName (whitespace) value
+
+# the name of this effect
+name    basicTexturing
+# place it is applied/injected into the base shader.
+place   fshader
+
+
+:fshaderparams
+out float4 o_color : COLOR
+in float2 l_tex: TEXCOORD0
+in uniform sampler2D tex_0: TEXUNIT0
+
+:Params
+out float4 o_color
+in float2 l_tex
+in uniform sampler2D tex_0
+
+:Shader
+o_color=tex2D(tex_0,l_tex);
