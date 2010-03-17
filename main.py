@@ -1,6 +1,7 @@
 from pandac.PandaModules import *
 
-from shaderEffects import *
+from shaderEffects.shaderEffects import readFile,loadEffectFromFile,applyShaderEffectPlacements
+from shaderEffects import effectPlacement
 
 from direct.task import Task
 from direct.actor import Actor
@@ -8,7 +9,7 @@ from direct.interval.IntervalGlobal import *
 import math
 import direct.directbase.DirectStart
 
-import effectPlacement
+
 
 
 
