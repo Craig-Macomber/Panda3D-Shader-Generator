@@ -20,7 +20,6 @@ class Filter(object):
         return self.call(self,item)
     
     def __and__(self,other):
-        print "x"
         return Filter((lambda self,item: self.params[0](item) and self.params[1](item)),self,other)
     
     def __or__(self,other):
@@ -35,7 +34,6 @@ class Filter(object):
 
 includeAll=Filter(lambda self,item: True)
 includeNone=Filter(lambda self,item: False)
-
 
 
 class ClassFilter(Filter):

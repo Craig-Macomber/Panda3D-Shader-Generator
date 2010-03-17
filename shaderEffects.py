@@ -1,16 +1,13 @@
 """
 
 Todo:
-Allow adding subeffects to ShaderEffect
-conditional application ideas: (supports ShaderInputs now)
-    tags (nodePath.setTage())
-    vertex properties (Done)
-    shader inputs (done)
-    location?
-
+vshader out -> fshader in should be considered somehow
 LOD/fallback (Shaders with multiple sources/different spots foe sub effects to be placed or not)
 
 Handel multiple application of an effect (Effect specifies action, mulltiple application, error, single application)
+    Also, multiple application of an effect using different inputs. Generally, named inputs support+multiple application support
+        goood for lights (light1, light2 etc)
+        and other things (wind1, wind2, what ever)
 
 
 """
