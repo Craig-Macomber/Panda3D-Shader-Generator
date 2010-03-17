@@ -9,11 +9,11 @@ from direct.interval.IntervalGlobal import *
 import math
 import direct.directbase.DirectStart
 
-
-
-
-
 print PandaSystem.getVersionString()
+
+
+
+# Setup an interesting scene graph to run effects on:
 
 base.disableMouse()
 
@@ -51,21 +51,8 @@ pandaPace = Sequence(pandaPosInterval1, pandaHprInterval1,
 pandaPace.loop()
 
 
-#pandaActor.setTexture(TextureStage('black'), loader.loadTexture('ralph.jpg'))
+# Setup some interesting shader inputs
 
-
-
-def walkTree(node):
-    yield node
-    for n in node.getChildren():
-        for w in walkTree(n):
-            yield w
-
-#for n in walkTree(render):
-#    n.clearTransparency()
-
-
-# Setup an interesting scene graph to run effects on:
 environ.setShaderInput('tintColor',Vec4(.2,.3,.5,1))
 #pandaActor.setShaderInput('tintColor',Vec4(0,0,.2,1))
 
@@ -73,17 +60,16 @@ pandaActor.setShaderInput('ambient',Vec4(1,.5,.2,1))
 render.setShaderInput('exposure',2)
 render.setShaderInput('transparancyThreshold',.5)
 
+# disable trasnparency so alpha to bloom filter is not crazy
 render.setTransparency(TransparencyAttrib.MNone,100)
 
 
 
 # Do some effects!
 
+# Convenience method for loading effects files
 def getEffect(name):
     return loadEffectFromFile('Effects',name)
-
-
-baseShader=readFile('base.sha').read()
 
 
 basicProject=effectPlacement.Placement(getEffect('basicProject'))
@@ -113,9 +99,14 @@ color.subEffects.extend([basicTex,transparancyThreshold,tint,light,expose,overBr
 
 effectPlacements=[basicProject,color]
 
+# get the base shader into shich the effects will be injected as a string
+baseShader=readFile('base.sha').read()
+
+# auctually apply all the effects to the scene graph
 applyShaderEffectPlacements(render,effectPlacements,baseShader,False)
 
 
+# a little filtering for bloom.
 from direct.filter.CommonFilters import CommonFilters
 # Filter to display the alpha channel as bloom.
 filters = CommonFilters(base.win, base.cam)
