@@ -9,8 +9,12 @@ from direct.interval.IntervalGlobal import *
 import math
 import direct.directbase.DirectStart
 
+from  shaderEffects import pyEffects
+
 print PandaSystem.getVersionString()
 
+
+pyEffects=pyEffects.loadAll("Effects")
 
 
 # Setup an interesting scene graph to run effects on:
@@ -84,7 +88,8 @@ light=effectPlacement.Placement(getEffect('light'),normalFilter)
 ambientFilter=effectPlacement.RequireShaderInputs(['ambient'])
 ambient=effectPlacement.Placement(getEffect('ambientLight'),ambientFilter)
 light.subEffects.append(ambient)
-expose=effectPlacement.Placement(getEffect('expose'),effectPlacement.RequireShaderInputs(['exposure']))
+#expose=effectPlacement.Placement(getEffect('expose'),effectPlacement.RequireShaderInputs(['exposure']))
+expose=pyEffects['expose']
 overBrightToAlpha=effectPlacement.Placement(getEffect('overBrightToAlpha'))
 transparancyThreshold=effectPlacement.Placement(getEffect('transparancyThreshold'),effectPlacement.RequireShaderInputs(['transparancyThreshold']))
 
@@ -110,6 +115,6 @@ applyShaderEffectPlacements(render,effectPlacements,baseShader,False)
 from direct.filter.CommonFilters import CommonFilters
 # Filter to display the alpha channel as bloom.
 filters = CommonFilters(base.win, base.cam)
-filterok = filters.setBloom(blend=(0,0,0,1), desat=0.5, intensity=2.5, size="large",mintrigger=0.6, maxtrigger=1.0)
+#filterok = filters.setBloom(blend=(0,0,0,1), desat=0.5, intensity=2.5, size="large",mintrigger=0.6, maxtrigger=1.0)
 
 run()

@@ -249,7 +249,8 @@ class ShaderEffect:
             ShaderEffect.applySubEffectsCache[key]=newEffect
             
         return ShaderEffect.applySubEffectsCache[key]
-        
+
+
 def loadEffectFromFile(path,name):
     """
     Build effect from an effects file
@@ -276,25 +277,8 @@ def loadEffectFromFile(path,name):
         
         for p in shaderParamPlaces:
             if p in d:
-                for s in d[p]:
-                    
-                    # s is param def, like:
-                    # out float4 o_color : COLOR
-                    # seperate out name
-                    
-                    i=s.find(':')
-                    if i==-1:
-                        semantic=None
-                        t=s.split()
-                    else:
-                        semantic=s[i+1:].strip()
-                        t=s[:i].split()
-                    shaderParamName=t[-1]
-                    out=xin=t[0]=='inout'
-                    out|=t[0]=='out'
-                    xin|=t[0]=='in'
-                    type=' '.join(t[1:-1])
-                    shaderParams.append(ShaderParam(p,shaderParamName,type,xin,out,semantic=semantic))
+                for s in d[p]:  
+                    shaderParams.append(ShaderParam.fromDefCode(p,s))
         
         paramNames=set([p.name for p in params])
         for p in shaderParams:
@@ -302,7 +286,7 @@ def loadEffectFromFile(path,name):
                 print "error: conflicting param and shaderParam "+p.name+" in "+path
             else:
                 paramNames.add(p.name)
-                params.append(ShaderEffectParam(p.defCode(True),p))
+                params.append(p.makeShaderEffectParam())
         
                 
         return ShaderEffect(name, info['place'], source, params)
@@ -340,6 +324,27 @@ class ShaderParam:
         self.out=out
         self.shaderInput=shaderInput
         self.semantic=semantic
+        
+    def makeShaderEffectParam(self):
+        return ShaderEffectParam(self.defCode(True),self)
+    
+    @staticmethod
+    def fromDefCode(place,defCode):
+        i=defCode.find(':')
+        if i==-1:
+            semantic=None
+            t=defCode.split()
+        else:
+            semantic=defCode[i+1:].strip()
+            t=defCode[:i].split()
+        shaderParamName=t[-1]
+        out=xin=t[0]=='inout'
+        out|=t[0]=='out'
+        xin|=t[0]=='in'
+        type=' '.join(t[1:-1])
+        
+        return ShaderParam(place,shaderParamName,type,xin,out,semantic=semantic)
+    
     
     def merge(self,other):
         """ Combines self and other if compatable into a single ShaderParam that is returned.
