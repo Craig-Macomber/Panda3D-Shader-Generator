@@ -1,4 +1,15 @@
 """
+Builds shader source strings
+
+Process:
+Create ShaderEffect instances
+use makeSource to inject ShaderEffects into a base shader file
+
+"""
+
+
+
+"""
 
 Todo:
 vshader out -> fshader in should be considered somehow
@@ -12,59 +23,9 @@ Handel multiple application of an effect (Effect specifies action, mulltiple app
 
 """
 
-from pandac.PandaModules import *
-
-
-# Makes debugging shaders easier
-useShaderFiles=True
-
-def pathPrefix():    
-    if base.appRunner!=None:
-        return base.appRunner.multifileRoot+'/'
-    else:
-        return ''
-
-
-def readFile(path):
-    return open(pathPrefix()+path, 'r')
-    
-def parseFile(path):
-    """
-    
-    Read sections headed by :SectionName into lists by section name in a dictionary
-    blank lines, line preceeding and ending whitespace and #Comments are stripped
-    
-    """
-    
-    d={}
-    currentList=None
-    
-    f = readFile(path)
-    for t in f.readlines(): 
-        # Remove comments
-        i=t.find('#')
-        if i!=-1: t=t[:i]
-        
-        # Strip excess whitespace
-        t=t.strip()
-        
-        
-        if len(t)>0:
-            # Process line
-            
-            if t[0]==':':
-                # if section header, prefixed with :
-                currentList=[]
-                d[t[1:].lower()]=currentList
-            else:
-                if currentList!=None:
-                    currentList.append(t)
-    return d
-
 shaderParamPlaces=('vshaderparams','fshaderparams')
 
-
-def mergeShaderParams(params):
+def _mergeShaderParams(params):
     d={}
     for p in params:
         key=(p.name,p.place)
@@ -78,7 +39,7 @@ def mergeShaderParams(params):
             d[key]=p
     return d.values()
 
-def injectEffectCalls(source,shaderEffects):
+def _injectEffectCalls(source,shaderEffects):
     """
     
     Injects the calls to the effects at the relevent locations in source
@@ -99,20 +60,8 @@ def injectEffectCalls(source,shaderEffects):
         source=source.replace('//<'+s+'>//','\n'.join(calls))
     
     return source
-    
-def makeShader(shaderEffects, baseShader):
-    """
-    
-    Generates shader source from effects and converts it into a Panda3D shader object
-    baseShader is source to inject effects into
-    
-    """
 
-    if useShaderFiles:
-        name='debug('+','.join([e.name for e in shaderEffects])+')'
-        outLoc='ShadersOut/'+name+'.sha'
-        print 'Making Shader: '+outLoc
-    
+def makeSource(shaderEffects, baseShader):
     methodsSource='\n'.join([s.methodSource for s in shaderEffects])
     
     source=baseShader
@@ -120,7 +69,7 @@ def makeShader(shaderEffects, baseShader):
     source=source.replace('//<__methods__>//',methodsSource)
     
     
-    source=injectEffectCalls(source,shaderEffects)
+    source=_injectEffectCalls(source,shaderEffects)
     shaderParams=[]
     
     for s in shaderEffects:
@@ -130,7 +79,7 @@ def makeShader(shaderEffects, baseShader):
     shaderParamsDefsCode=dict([(p,[]) for p in shaderParamPlaces])
     
       
-    shaderParams=mergeShaderParams(shaderParams)
+    shaderParams=_mergeShaderParams(shaderParams)
     
     for s in shaderParams:
         shaderParamsDefsCode[s.place].append(s.defCode())
@@ -138,43 +87,7 @@ def makeShader(shaderEffects, baseShader):
     for s in shaderParamPlaces:
         source=source.replace('//<__'+s+'__>//',',\n'.join(shaderParamsDefsCode[s]))
     
-    
-    if useShaderFiles:
-        fOut=open(outLoc, 'w')
-        fOut.write(source)
-        fOut.close()
-           
-    shader=Shader.make(source)
-        
-    return shader
-
-# Shader cache for getShader
-builtEffectsShaders={}
-
-def getShader(shaderEffects, baseShader):
-    """
-    
-    Cashes shaders from makeShader to avoid regeneration or multiple identicle shaders
-    
-    """
-    key=(tuple(shaderEffects), baseShader)
-    if key not in builtEffectsShaders:
-        builtEffectsShaders[key]=makeShader(shaderEffects, baseShader)
-        
-    return builtEffectsShaders[key]
-
-def applyEffects(shaderEffects, targetNodePath, baseShader):
-    """
-    Applies the effects to the passed nodepath
-    shaderEffects=list of ShaderEffect objects, orderd by application order
-    targetNodePath=Nodepath to apply to
-    
-    baseShader=source to inject effects into
-    """
-    
-    targetNodePath.setShader(getShader(shaderEffects, baseShader))
-    
-    
+    return source
     
 class ShaderEffect:
     """
@@ -229,7 +142,7 @@ class ShaderEffect:
         key=tuple(effects)
         if key not in ShaderEffect.applySubEffectsCache:
 
-            source=injectEffectCalls(self.source,effects)
+            source=_injectEffectCalls(self.source,effects)
             
             extraMethodsSource='\n'.join([s.methodSource for s in effects])
             
@@ -250,61 +163,18 @@ class ShaderEffect:
             
         return ShaderEffect.applySubEffectsCache[key]
 
-
-def loadEffectFromFile(path,name):
-    """
-    Build effect from an effects file
-    path should be containing folder
-    name is filename without '.txt'
-    
-    """
-    path=path+'/'+name+'.txt'
-    d=parseFile(path)
-
-    if 'info' in d and 'shader' in d:
-        if 'params' not in d: d['params']=[]
-        
-        source='\n'.join(d['shader'])
-        params=[ShaderEffectParam(t) for t in d['params']]
-        info=dict([t.split() for t in d['info']])
-        if 'place' not in info:
-            print 'error: place not specified in effects file '+path
-            return
-        
-        
-        
-        shaderParams=[]
-        
-        for p in shaderParamPlaces:
-            if p in d:
-                for s in d[p]:  
-                    shaderParams.append(ShaderParam.fromDefCode(p,s))
-        
-        paramNames=set([p.name for p in params])
-        for p in shaderParams:
-            if p.name in paramNames:
-                print "error: conflicting param and shaderParam "+p.name+" in "+path
-            else:
-                paramNames.add(p.name)
-                params.append(p.makeShaderEffectParam())
-        
-                
-        return ShaderEffect(name, info['place'], source, params)
-        
-    else:
-        print 'error: one of the required sections is missing from effects file at '+path
-    
         
 class ShaderParam:
+    """
+    This is a param for the shader itself, not a param for an effect.
+    It it used for gettting shaderInputs avaliable shaderside, as well as
+    exposing special things like mat_modelproj and vtx_position
+    
+    This is also used for shader outputs, like the final color, transformed vertex position,
+    and passing stuff from vshader to fshader
+    """
     def __init__(self,place,name,type,xin,out,semantic=None,shaderInput=None):
         """
-        This is a param for the shader itself, not an effect.
-        It it used for gettting shaderInputs avaliable shaderside, as well as
-        exposing special things like mat_modelproj and vtx_position
-        
-        This is also used for shader outputs, like the final color, transformed vertex position,
-        and passing stuff from vshader to fshader
-        
         type=ex: "float4" or "uniform float4x4"
         xin=boolean for input or not 
         out=boolean for output or not
@@ -312,6 +182,8 @@ class ShaderParam:
         place=placement spot. Usally fshaderParams of vshaderParams, string
         semantic=string after : such as POSITION
         
+        
+        to build from a string see staticmethod fromDefCode
         """
         
         if not (xin or out): print 'Error, ShaderParam '+name+' is not in or out'
@@ -330,6 +202,10 @@ class ShaderParam:
     
     @staticmethod
     def fromDefCode(place,defCode):
+        """
+        example usage:
+        shaderParam=ShaderParam.fromDefCode("vshaderparams","in uniform sampler2D k_grassData: TEXUNIT0")
+        """
         i=defCode.find(':')
         if i==-1:
             semantic=None
@@ -347,8 +223,12 @@ class ShaderParam:
     
     
     def merge(self,other):
-        """ Combines self and other if compatable into a single ShaderParam that is returned.
-        None returned if incompatable"""
+        """
+        Combines self and other if compatable into a single ShaderParam that is returned.
+        None returned if incompatable
+        Used for merging things that are equivelent, merging in and out to inout, and/or merging no semantic with one with a semantic specified
+        mainly used to try and resolve name comflicts for params, and cause an error if they conflict
+        """
         
         if self.name!=other.name or self.type!=other.type or self.shaderInput!=other.shaderInput or (self.semantic!=None and other.semantic!=None and self.semantic!=other.semantic):
             return None
@@ -368,59 +248,6 @@ class ShaderEffectParam:
         
         #evaluationCode=shader code placed in ShaderEffect's wraper method call to compute the value to be passed
         self.evaluationCode=defCode.split()[-1]
-
-        
         self.name=self.evaluationCode
-        
         self.defCode=defCode
         self.shaderParam=shaderParam
-
-
-def applyShaderEffectPlacements(baseNode,ShaderEffectPlacements,baseShader,effectLs=False):
-
-    
-    # nodeDict will store (node:[ShaderEffect list])
-    nodeDict={}
-    
-    # Used to build nodeDict
-    def traverseTree(currentNode,shaderEffectPlacement):
-        def makeEffect(placement):
-            if placement.appliesTo(currentNode):
-                subEffects=[]
-                for s in placement.subEffects:
-                    subEffect=makeEffect(s)
-                    if subEffect:
-                        subEffects.append(subEffect)
-                if subEffects:
-                    return placement.shaderEffect.applySubEffects(subEffects)
-                else:
-                    return placement.shaderEffect
-            return None
-            
-        effect=makeEffect(shaderEffectPlacement)
-        
-        if effect:
-            effects=nodeDict.get(currentNode,[])
-            effects.append(effect)
-            nodeDict[currentNode]=effects
-        for i in xrange(currentNode.getNumChildren()):
-            traverseTree(currentNode.getChild(i),shaderEffectPlacement)
-    
-    # Build nodeDict
-    for p in ShaderEffectPlacements:
-        traverseTree(baseNode,p)
-    
-    
-    def applyToTree(currentNode,parentShader):
-        if effectLs:
-            print "    "*currentNode.getNumNodes()+currentNode.getName()+": "+", ".join([e.name for e in nodeDict.get(currentNode,[])])
-        effectHolderList=nodeDict.get(currentNode,[])
-        shader=getShader(effectHolderList,baseShader)
-        if shader is not parentShader:
-            currentNode.setShader(shader)
-        for i in xrange(currentNode.getNumChildren()):
-            applyToTree(currentNode.getChild(i),shader)
-            
-    applyToTree(baseNode,None)
-
-

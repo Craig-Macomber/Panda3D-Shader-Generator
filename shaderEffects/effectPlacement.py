@@ -1,4 +1,7 @@
-from filter import *
+from filter_ import *
+import pandautil
+import shaderEffects
+
 
 class Placement:
     def __init__(self,shaderEffect,filter=includeAll,subEffects=None):
@@ -117,3 +120,53 @@ class BlendMode(Filter):
     def __call__(self,node):
         #Not done yet!
         print "Error, feature todo!"
+        
+        
+def applyShaderEffectPlacements(baseNode,ShaderEffectPlacements,baseShader,effectLs=False):
+
+    
+    # nodeDict will store (node:[ShaderEffect list])
+    nodeDict={}
+    
+    # Used to build nodeDict
+    def traverseTree(currentNode,shaderEffectPlacement):
+        def makeEffect(placement):
+            if placement.appliesTo(currentNode):
+                subEffects=[]
+                for s in placement.subEffects:
+                    subEffect=makeEffect(s)
+                    if subEffect:
+                        subEffects.append(subEffect)
+                if subEffects:
+                    return placement.shaderEffect.applySubEffects(subEffects)
+                else:
+                    return placement.shaderEffect
+            return None
+            
+        effect=makeEffect(shaderEffectPlacement)
+        
+        if effect:
+            effects=nodeDict.get(currentNode,[])
+            effects.append(effect)
+            nodeDict[currentNode]=effects
+        for i in xrange(currentNode.getNumChildren()):
+            traverseTree(currentNode.getChild(i),shaderEffectPlacement)
+    
+    # Build nodeDict
+    for p in ShaderEffectPlacements:
+        traverseTree(baseNode,p)
+    
+    
+    def applyToTree(currentNode,parentShader):
+        if effectLs:
+            print "    "*currentNode.getNumNodes()+currentNode.getName()+": "+", ".join([e.name for e in nodeDict.get(currentNode,[])])
+        effectHolderList=nodeDict.get(currentNode,[])
+        shader=pandautil.getShader(effectHolderList,baseShader)
+        if shader is not parentShader:
+            currentNode.setShader(shader)
+        for i in xrange(currentNode.getNumChildren()):
+            applyToTree(currentNode.getChild(i),shader)
+            
+    applyToTree(baseNode,None)
+
+

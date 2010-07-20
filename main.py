@@ -1,7 +1,8 @@
 from pandac.PandaModules import *
 
-from shaderEffects.shaderEffects import readFile,loadEffectFromFile,applyShaderEffectPlacements
+from shaderEffects.txteffects import readFile,loadEffectFromFile
 from shaderEffects import effectPlacement
+from shaderEffects.effectPlacement import applyShaderEffectPlacements
 
 from direct.task import Task
 from direct.actor import Actor
@@ -97,7 +98,7 @@ basicTex=effectPlacement.Placement(getEffect('basicTex'))
 
 
 
-color=effectPlacement.Placement(getEffect('color'))
+color=pyEffects['color']#effectPlacement.Placement(getEffect('color'))
 color.subEffects.extend([basicTex,transparancyThreshold,tint,light,expose,overBrightToAlpha])
 
 

@@ -1,4 +1,4 @@
-from shaderEffects import shaderEffects
+from shaderEffects import shadereffects
 from shaderEffects import effectPlacement
 
 
@@ -20,11 +20,11 @@ color.xyz*=k_exposure.x;
 
 def getPlacements():
     params=[
-        shaderEffects.ShaderEffectParam('inout float4 color'),
-        shaderEffects.ShaderParam.fromDefCode('fshaderparams','in uniform float4 k_exposure').makeShaderEffectParam()
+        shadereffects.ShaderEffectParam('inout float4 color'),
+        shadereffects.ShaderParam.fromDefCode('fshaderparams','in uniform float4 k_exposure').makeShaderEffectParam()
         ]
     
-    effect=shaderEffects.ShaderEffect('expose', 'color', 'color.xyz*=k_exposure.x;', params)
+    effect=shadereffects.ShaderEffect('expose', 'color', 'color.xyz*=k_exposure.x;', params)
     filter=effectPlacement.RequireShaderInputs(['exposure'])
     placement=effectPlacement.Placement(effect,filter)
     return [placement]
