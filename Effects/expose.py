@@ -1,5 +1,5 @@
-from shaderEffects import shadereffects
-from shaderEffects import effectPlacement
+from shadereffects import shadereffects
+from shadereffects import effectPlacement
 
 
 '''

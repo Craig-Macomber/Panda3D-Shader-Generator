@@ -1,0 +1,11 @@
+:Info
+place   color
+
+:fshaderparams
+in uniform float4 attr_color
+
+:Params
+out float4 color
+
+:Shader
+color=attr_color;

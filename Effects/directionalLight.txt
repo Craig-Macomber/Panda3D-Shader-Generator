@@ -1,0 +1,13 @@
+:Info
+place   diffuseLight
+
+:fshaderparams
+in uniform float4 k_lightDirection
+in uniform float4 k_lightColor
+in float3 l_normal: TEXCOORD_X
+
+:Params
+inout float3 diffuseLight
+
+:Shader
+diffuseLight+=max(0,dot(l_normal,k_lightDirection.xyz))*k_lightColor.xyz;

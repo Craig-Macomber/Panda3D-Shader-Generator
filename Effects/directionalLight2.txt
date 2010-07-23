@@ -1,0 +1,19 @@
+:Info
+place   specularLight
+
+:fshaderparams
+in uniform float4x4 dlight_dlight_to_model
+in float3 l_normal: TEXCOORD_X
+
+:Params
+inout float3 diffuseLight
+inout float3 specularLight
+
+:Shader
+float4x4 mat=(dlight_dlight_to_model);
+float NdotL=dot(l_normal,normalize(mat[2].xyz));
+// here H is approximate for the whole model, not per pixel or even per vertex!
+float NdotH=dot(l_normal,normalize(mat[3].xyz));
+float4 l=lit(NdotL , NdotH , 100);
+specularLight+=mat[1].xyz*l.z*1;
+diffuseLight+=mat[0].xyz*l.y;

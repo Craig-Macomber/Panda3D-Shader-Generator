@@ -1,0 +1,16 @@
+:Info
+place   color
+
+:fshaderparams
+in float4 l_modelPos: TEXCOORD_X
+in uniform float4 k_projectScale
+in uniform float4 k_projectShift
+
+:Params
+inout float4 color
+
+:Shader
+const float pi=3.1415926535897932384626433832795028841971693993751;
+float4 pos=k_projectShift+k_projectScale*float4(length(l_modelPos.xy),atan2(l_modelPos.y,l_modelPos.x)/(2*pi)+.5,l_modelPos.z,1);
+color=frac(pos*16);
+color.w=1;

@@ -1,6 +1,6 @@
-from shaderEffects import shadereffects
-from shaderEffects import effectPlacement
-from shaderEffects.filter_ import includeAll
+from shadereffects import shadereffects
+from shadereffects import effectPlacement
+from shadereffects.filter_ import includeAll
 
 '''
 :Info

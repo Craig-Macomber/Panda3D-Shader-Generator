@@ -1,8 +1,8 @@
 from pandac.PandaModules import *
 
-from shaderEffects.txteffects import readFile,loadEffectFromFile
-from shaderEffects import effectPlacement
-from shaderEffects.effectPlacement import applyShaderEffectPlacements
+from shadereffects.txteffects import loadEffectFromFile
+from shadereffects import effectPlacement
+from shadereffects.effectPlacement import applyShaderEffectPlacements
 
 from direct.task import Task
 from direct.actor import Actor
@@ -10,9 +10,34 @@ from direct.interval.IntervalGlobal import *
 import math
 import direct.directbase.DirectStart
 
-from  shaderEffects import pyEffects
+from  shadereffects import pyEffects
 
 print PandaSystem.getVersionString()
+
+
+
+dlight = DirectionalLight('dlight')
+dlight.setColor(Vec4(4.9, 0.9, 0.8, 1))
+dlight.setSpecularColor(Vec4(0.9, 0.9, 0.8, 10))
+dlnp = render.attachNewNode(dlight)
+dlnp.setHpr(0, 0, 0)
+render.setLight(dlnp)
+render.setShaderInput('dlight',dlnp)
+
+
+alight = AmbientLight('alight')
+
+alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
+alnp = render.attachNewNode(alight)
+render.setLight(alnp)
+render.setShaderInput('alight',alnp)
+
+dayCycle=dlnp.hprInterval(1.0,Point3(0,360,0))
+dayCycle.loop()
+
+
+
+
 
 
 pyEffects=pyEffects.loadAll("Effects")
@@ -61,7 +86,7 @@ pandaPace.loop()
 environ.setShaderInput('tintColor',Vec4(.2,.3,.5,1))
 #pandaActor.setShaderInput('tintColor',Vec4(0,0,.2,1))
 
-pandaActor.setShaderInput('ambient',Vec4(1,.5,.2,1))
+#pandaActor.setShaderInput('ambient',Vec4(1,.5,.2,1))
 render.setShaderInput('exposure',2)
 render.setShaderInput('transparancyThreshold',.5)
 
@@ -85,10 +110,19 @@ tint=effectPlacement.Placement(getEffect('tint'),tintFilter)
 
 normalFilter=effectPlacement.RequireVertexProperties(['normal'])
 
-light=effectPlacement.Placement(getEffect('light'),normalFilter)
-ambientFilter=effectPlacement.RequireShaderInputs(['ambient'])
+#light=effectPlacement.Placement(getEffect('light'),normalFilter)
+light=effectPlacement.Placement(getEffect('light'))
+
+
+ambientFilter=effectPlacement.RequireShaderInputs(['alight'])
 ambient=effectPlacement.Placement(getEffect('ambientLight'),ambientFilter)
-light.subEffects.append(ambient)
+
+vNorms=effectPlacement.Placement(getEffect('vertexNormals'),normalFilter)
+dLightFilter=effectPlacement.RequireShaderInputs(['dlight'])&normalFilter
+dLight=effectPlacement.Placement(getEffect('directionalLight2'),dLightFilter)
+
+
+light.subEffects.extend([ambient,dLight])
 #expose=effectPlacement.Placement(getEffect('expose'),effectPlacement.RequireShaderInputs(['exposure']))
 expose=pyEffects['expose']
 overBrightToAlpha=effectPlacement.Placement(getEffect('overBrightToAlpha'))
@@ -103,13 +137,11 @@ color.subEffects.extend([basicTex,transparancyThreshold,tint,light,expose,overBr
 
 
 
-effectPlacements=[basicProject,color]
+effectPlacements=[basicProject,vNorms,color]
 
-# get the base shader into shich the effects will be injected as a string
-baseShader=readFile('base.sha').read()
 
 # auctually apply all the effects to the scene graph
-applyShaderEffectPlacements(render,effectPlacements,baseShader,False)
+applyShaderEffectPlacements(render,effectPlacements,None,False)
 
 
 # a little filtering for bloom.

@@ -1,7 +1,5 @@
 from filter_ import *
 import pandautil
-import shaderEffects
-
 
 class Placement:
     def __init__(self,shaderEffect,filter=includeAll,subEffects=None):
@@ -18,16 +16,12 @@ class Placement:
         
         self.subEffects=subEffects if subEffects else []
         
-        
+    # appliesTo could return something special to signal not to bother checking child nodes. This would speed things up.
     def appliesTo(self,node):
         """
         Checks to see of effect should be placed on node
         """
         return self.filter(node)
-
-
-# appliesTo could return something special to signal not to bother checking child nodes. This would speed things up.
-
 
 
 class IncludeNodes(Filter):
@@ -138,7 +132,9 @@ def applyShaderEffectPlacements(baseNode,ShaderEffectPlacements,baseShader,effec
                     if subEffect:
                         subEffects.append(subEffect)
                 if subEffects:
-                    return placement.shaderEffect.applySubEffects(subEffects)
+                    newEffect=placement.shaderEffect.shallowCopy()
+                    newEffect.subEffects.extend(subEffects)
+                    return newEffect
                 else:
                     return placement.shaderEffect
             return None

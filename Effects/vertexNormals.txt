@@ -1,0 +1,9 @@
+:Info
+place   vshader
+
+:vshaderParams
+in varying float3 vtx_normal: NORMAL
+out float3 l_normal: TEXCOORD_X
+
+:Shader
+l_normal=vtx_normal;

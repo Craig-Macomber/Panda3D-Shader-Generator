@@ -5,7 +5,7 @@ place   color
 inout float4 color
 
 :Shader
-float3 diffuseLight=float3(1,1,1);
+float3 diffuseLight=float3(0,0,0);
 //<diffuseLight>//
 float3 specularLight=float3(0,0,0);
 //<specularLight>//

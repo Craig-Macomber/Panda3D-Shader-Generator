@@ -7,7 +7,9 @@ in float4 vtx_position : POSITION
 out float4 l_position : POSITION
 in float2 vtx_texcoord0 : TEXCOORD0
 out float2 l_tex: TEXCOORD0
-
+out float4 l_modelPos: TEXCOORD_X
 :Shader
-l_position = mul(mat_modelproj, vtx_position);
+l_modelPos=vtx_position;
+//<modelPos>//
+l_position = mul(mat_modelproj, l_modelPos);
 l_tex=vtx_texcoord0.xy;

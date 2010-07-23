@@ -2,10 +2,10 @@
 place   diffuseLight
 
 :fshaderparams
-in uniform float4 k_ambient
+in uniform float4 alight_alight
 
 :Params
 inout float3 diffuseLight
 
 :Shader
-diffuseLight=k_ambient.xyz;
+diffuseLight+=alight_alight.xyz;
