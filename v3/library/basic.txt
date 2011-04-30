@@ -1,0 +1,34 @@
+:: lib
+: code
+// Some Lib 0 //
+
+
+:: lib
+: code
+// Some Lib 1 //
+
+:: node
+: info
+name redOut
+: shaderOutputs
+float4 o_color: COLOR
+: outlinks
+float4 x
+
+: code
+o_color = float4(1,0,0,1);
+x=10;
+
+:: node
+: info
+name vertProject
+
+: shaderInputs
+uniform float4x4 mat_modelproj
+float4 vtx_position : POSITION
+
+: shaderOutputs
+float4 l_position : POSITION
+
+: code
+l_position = mul(mat_modelproj, vtx_position);

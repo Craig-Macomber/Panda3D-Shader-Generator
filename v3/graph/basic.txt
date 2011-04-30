@@ -1,0 +1,18 @@
+:: link
+: info
+name link0
+type float4
+
+:: node
+: info
+name redOut
+stage fshader
+: inlinks
+#link0
+: outlinks
+link0
+
+:: node
+: info
+name vertProject
+stage vshader
