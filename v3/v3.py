@@ -249,7 +249,7 @@ class Library(object):
                         print "invalid info entry missing type in link: "+name+" in file: "+path
                     else:
                         dataType=info["type"]
-                        links[name]=Link(dataType)
+                        links[name]=Link(dataType,name)
                         
         for items in d["node"]:
             if "info" not in items:
@@ -380,7 +380,8 @@ class ActiveNode(object):
     def isOutPut(self): return len(self.getShaderOutputs())>0
     def getCode(self): return self.code
     def getStage(self): return self.stage
-    
+    def __repr__(self):
+        return "ActiveNode"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
     
 class Node(object):
     """
@@ -397,6 +398,7 @@ class Node(object):
         self.inLinks=inLinks if inLinks else []
         self.outLinks=outLinks if outLinks else []
         self.code=code
+    def getStage(self): return self.stage
     def getInLinks(self): return self.inLinks
     def getOutLinks(self): return self.outLinks
     def getActiveNode(self,renderState,linkStatus):
@@ -407,7 +409,8 @@ class Node(object):
         """
         return ActiveNode(self.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(self.inLinks),tuple(self.outLinks),self.code)
 
-
+    def __repr__(self):
+        return "Node"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
 
 
         
@@ -419,10 +422,12 @@ class Link(object):
     As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
     
     """
-    def __init__(self,dataType):
+    def __init__(self,dataType,name="<Unnamed>"):
         self.dataType=dataType
+        self.name=name
     def getType(self): return self.dataType
-
+    def __repr__(self):
+        return "Link"+str(tuple([self.dataType,self.name]))
 
 class AutoNamer(object):
     """
@@ -571,6 +576,8 @@ class ShaderBuilder(object):
 
             for link in outLinks:
                 for dst in self.linkToDst[link]:
+                    if dst.getStage()!=n.getStage():
+                        print "Error: mismatched stages in dependant nodes: "+repr(n)+repr(dst)
                     inLinks=set(dst.getInLinks())
                     if not inLinks-processedLinks: # if processed all incomming links
                         toProcess.add(dst)
@@ -617,7 +624,7 @@ class ShaderBuilder(object):
             
             a=n.getActiveNode(renderState,linkStatus)
             activeOutLinks.update(a.getOutLinks())
-            outLinks=n.getOutLinks()
+            outLinks=a.getOutLinks()
             for link in outLinks:
                 linkStatus[link]= link in activeOutLinks
                 linkToSource[link]=a
@@ -656,6 +663,17 @@ class ShaderBuilder(object):
                     if a not in visited:
                         bottomActiveOutputs.discard(a)
                         toVisit.add(a)
+                        
+        
+        # some sanity checks
+        for link,dsts in linkToActiveDst.iteritems():
+            for dst in dsts:
+                assert link in dst.getInLinks()
+        
+        for link,source in linkToSource.iteritems():
+            assert link in source.getOutLinks()
+            
+            
         
         # generate shader upwards from bottomActiveOutputs
         # this will generate the minimal part of the graph needed to provide the inputs
@@ -667,19 +685,22 @@ class ShaderBuilder(object):
         while toProcess:
             n=toProcess.pop()
             neededNodes.append(n)
+            #print neededNodes
             processed.add(n)
-
+            
             # see if nodes providing input should be processed yet
             inLinks=n.getInLinks()
             for inLink in inLinks: # for all inputs to n
-                source=linkToSource[link]
+                source=linkToSource[inLink]
+                assert source not in processed
+                assert source not in toProcess
                 outLinks=source.getOutLinks()
-                # check if all outputs are already processed
+                # check if all uses of outputs of source are already processed
                 sourceReady=True
                 for link in outLinks:
                     if not sourceReady: break
                     for dst in linkToActiveDst[link]:
-                        if dst in processed:
+                        if dst not in processed:
                             sourceReady=False
                             break
                 if sourceReady: # if all outputs already processed, process it
