@@ -8,14 +8,31 @@ from panda3d.core import Shader
 
 join=os.path.join
 
+
+
+
 class NodeType(object):
+    """
+    
+    each instance represents a node type defined in a library
+    
+    """
     def __init__(self,shaderInputs=[],shaderOutputs=[],inLinks=[],outLinks=[],code=""):
         self.shaderInputs=shaderInputs
         self.shaderOutputs=shaderOutputs
         self.inLinks=inLinks
         self.outLinks=outLinks
         
-
+        self.makeFullCode(code)
+        
+    def makeFullCode(self,code):
+        """
+        
+        the code needed to construct Nodes includes the (paramList){code} wrapping stuff, so this addes it
+        and saves it to self.code
+        
+        """
+        
         fparamChain=itertools.chain(
              ("in "+s.getType()+" "+s.getName() for s in self.shaderInputs),
              ("out "+s.getType()+" "+s.getName() for s in self.shaderOutputs),
@@ -47,6 +64,12 @@ class NodeType(object):
 
     def __repr__(self):
         return "NodeType"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,self.code]))
+
+nodeTypeClassMap={None:NodeType}
+
+def makeNodeType(class_,*args):
+    return nodeTypeClassMap[class_](*args)
+
 
 def _parseFile(path):
     majorSections=collections.defaultdict(list)
@@ -98,6 +121,15 @@ def _parseFile(path):
 Library=collections.namedtuple("Library",["nodeTypes","libSource"])
 
 def loadLibrary(path):
+    """
+    
+    path should be a path to a library folder
+    
+    returns a Library made from the contents of the passed folder path.
+    
+    """
+    
+    
     nodes={}
     libs=[]
     
@@ -144,7 +176,9 @@ def loadLibrary(path):
                                     if "code" in items:
                                         code="\n".join(items["code"])
                                     
-                                    nodes[name]=NodeType(shaderInputs,shaderOutputs,inLinks,outLinks,code)
+                                    class_=info.get("class")
+                                    
+                                    nodes[name]=makeNodeType(class_,shaderInputs,shaderOutputs,inLinks,outLinks,code)
                             
                     elif key=="lib":
                         libs.append(xitems)
@@ -166,6 +200,11 @@ def _parseInfoLines(lines,currentFile):
     return info
     
 def loadGraph(path,library):
+    """
+    
+    path should be a path to a graph text file, and library should be a Library from loadLibrary
+    
+    """
     nodeTypes,libSource=library
     links={}
     nodes=[]
@@ -229,6 +268,12 @@ def loadGraph(path,library):
 
 
 def linkEndFromDefCode(defCode):
+    """
+    
+    returns a Param representing the entry on a link into a NodeType. This allows the Nodes to have their own internal names
+    for their inputs and outputs that are seperate from the names of Links. The types should match though!
+    
+    """
     
     t=defCode.split()
     
@@ -238,6 +283,13 @@ def linkEndFromDefCode(defCode):
 
 
 def shaderParamFromDefCode(defCode):
+    """
+    
+    example usage:
+    shaderParam=shaderParamFromDefCode("uniform sampler2D k_grassData: TEXUNIT0")
+    shaderParam=shaderParamFromDefCode("float4 o_color")
+    
+    """
     i=defCode.find(':')
     if i==-1:
         semantic=None
@@ -267,6 +319,16 @@ class ShaderInput(ShaderParam): pass
 class ShaderOutput(ShaderParam): pass
 
 class ActiveNode(object):
+    """
+    
+    ActiveNodes should never be modified, and should not be subclassed.
+    
+    They use the Flyweight pattern, and thus can be compared by pointer with "is"
+    
+    This is important as they are hashed by pointer,
+    and need to compare properly and quicky for the caching to work.
+    
+    """
     cache = {}
     
     def __new__(cls, *v):
@@ -293,6 +355,13 @@ class ActiveNode(object):
     
     
 class Node(object):
+    """
+    
+    A shader node. They can be connected to others using Links to form a graph.
+    
+    Specifically, the nodes and links form a cycle free directed multigraph, with data on both the edges and nodes.
+    
+    """
     def __init__(self,stage,shaderInputs=None,shaderOutputs=None,inLinks=None,outLinks=None,code=""):
         self.stage=stage
         self.shaderInputs=shaderInputs if shaderInputs else []
@@ -315,12 +384,24 @@ class Node(object):
 
         
 class Link(object):
+    """
+    
+    An output from a shader Node, and possibly multiple inputs to multiple shader nodes.
+    
+    As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
+    
+    """
     def __init__(self,dataType):
         self.dataType=dataType
     def getType(self): return self.dataType
 
 
 class AutoNamer(object):
+    """
+    
+    A simple class for associating unique names with hashables
+    
+    """
     def __init__(self,prefix):
         self.items={}
         self.prefix=prefix
@@ -332,6 +413,11 @@ class AutoNamer(object):
     
 
 class StageBuilder(object):
+    """
+    
+    Used by ShaderBuilder to build the different stages in the shaders
+    
+    """
     def __init__(self):
         self.links=AutoNamer("__x")
         self.inputs=set()
@@ -473,7 +559,11 @@ class ShaderBuilder(object):
         
         will generate or fetch from cache as needed
         
+        noChache forces the generation of the shader (but it will still get cached).
+        Useful for use with debugFile if you need to see the source, but it may be cached
+        
         """
+        
         shader=self.cache.get(renderState)
         if shader and not noChache:
             print "Shader is cached. Skipping generating shader to: "+debugFile
