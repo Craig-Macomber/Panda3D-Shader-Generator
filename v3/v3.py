@@ -340,7 +340,9 @@ class ShaderParam(Param):
         Param.__init__(self,name,type)
         self.semantic=semantic
     def getSemantic(self): return self.semantic
-
+    def getDefCode(self): return self.type+" "+self.name+((" : "+self.semantic) if self.semantic else "")
+    
+    
 class ShaderInput(ShaderParam): pass
 class ShaderOutput(ShaderParam): pass
 
@@ -490,8 +492,8 @@ class StageBuilder(object):
         
     def generateSource(self,name):
         paramChain=itertools.chain(
-            ("in "+s.getType()+" "+s.getName() for s in self.inputs),
-            ("out "+s.getType()+" "+s.getName() for s in self.outputs)
+            ("in "+s.getDefCode() for s in self.inputs),
+            ("out "+s.getDefCode() for s in self.outputs)
             )
     
         header="void "+name+"(\n  "+",\n  ".join(paramChain)+")\n{\n\n"
