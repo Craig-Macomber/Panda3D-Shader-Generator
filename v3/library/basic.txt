@@ -7,17 +7,91 @@
 : code
 // Some Lib 1 //
 
+
+:: node
+: info
+name vertexNormal
+: shaderinputs
+varying float3 vtx_normal: NORMAL
+: outlinks
+float3 norm
+
+: code
+norm=vtx_normal;
+
+:: node
+: info
+name exportNormal
+: shaderoutputs
+float3 l_normal
+: inlinks
+float3 norm
+
+: code
+l_normal=norm;
+
+
+:: node
+: info
+name float3Multiply
+: outlinks
+float3 product
+: inlinks
+float3 a
+float3 b
+: code
+product=a*b;
+
+:: node
+: info
+name float3Sum
+: outlinks
+float3 sum
+: inlinks
+float3 a
+float3 b
+: code
+sum=a+b;
+
+:: node
+: info
+name directionalLight
+: shaderinputs
+uniform float4x4 dlight_dlight_to_model
+float3 l_normal
+: outlinks
+float3 specularLight
+float3 diffuseLight
+
+: code
+float4x4 mat=(dlight_dlight_to_model);
+float NdotL=dot(l_normal,normalize(mat[2].xyz));
+// here H is approximate for the whole model, not per pixel or even per vertex!
+float NdotH=dot(l_normal,normalize(mat[3].xyz));
+float4 l=lit(NdotL , NdotH , 100);
+specularLight=mat[1].xyz*l.z*1;
+diffuseLight=mat[0].xyz*l.y;
+
 :: node
 : info
 name redOut
+: outlinks
+float3 color
+: code
+color = float3(1,0,0);
+
+
+
+:: node
+: info
+name colorOut
+: inlinks
+float3 color
 : shaderOutputs
 float4 o_color: COLOR
-: outlinks
-float4 x
 
 : code
-o_color = float4(1,0,0,1);
-x=10;
+o_color = float4(color,1);
 
 :: node
 : info

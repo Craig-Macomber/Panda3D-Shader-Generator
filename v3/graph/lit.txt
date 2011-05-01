@@ -1,0 +1,98 @@
+:: link
+: info
+name vertexNormal
+type float3
+
+:: link
+: info
+name diffuseColor
+type float3
+
+:: link
+: info
+name diffuseLight
+type float3
+
+:: link
+: info
+name specularLight
+type float3
+
+:: link
+: info
+name diffuse
+type float3
+
+:: link
+: info
+name lighting
+type float3
+
+
+:: node
+: info
+name redOut
+stage fshader
+: outlinks
+diffuseColor
+
+:: node
+: info
+name colorOut
+stage fshader
+: inlinks
+lighting
+
+:: node
+: info
+name directionalLight
+stage fshader
+: outlinks
+specularLight
+diffuseLight
+
+:: node
+: info
+name float3Sum
+stage fshader
+: inlinks
+diffuse
+specularLight
+: outlinks
+lighting
+
+
+:: node
+: info
+name float3Multiply
+stage fshader
+: inlinks
+diffuseColor
+diffuseLight
+: outlinks
+diffuse
+
+
+
+
+:: node
+: info
+name vertProject
+stage vshader
+
+:: node
+: info
+name vertexNormal
+stage vshader
+: inlinks
+: outlinks
+vertexNormal
+
+
+:: node
+: info
+name exportNormal
+stage vshader
+: inlinks
+vertexNormal
+: outlinks

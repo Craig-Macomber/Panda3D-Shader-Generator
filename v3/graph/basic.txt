@@ -1,18 +1,52 @@
 :: link
 : info
-name link0
-type float4
+name vertexNormal
+type float3
+
+
+
+:: link
+: info
+name lighting
+type float3
+
 
 :: node
 : info
 name redOut
 stage fshader
-: inlinks
-#link0
 : outlinks
-link0
+lighting
+
+:: node
+: info
+name colorOut
+stage fshader
+: inlinks
+lighting
+
+
+
+
 
 :: node
 : info
 name vertProject
 stage vshader
+
+:: node
+: info
+name vertexNormal
+stage vshader
+: inlinks
+: outlinks
+vertexNormal
+
+
+:: node
+: info
+name exportNormal
+stage vshader
+: inlinks
+vertexNormal
+: outlinks
