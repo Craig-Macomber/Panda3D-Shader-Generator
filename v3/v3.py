@@ -65,10 +65,6 @@ class NodeType(object):
     def __repr__(self):
         return "NodeType"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,self.code]))
 
-nodeTypeClassMap={None:NodeType}
-
-def makeNodeType(class_,*args):
-    return nodeTypeClassMap[class_](*args)
 
 
 def _parseFile(path):
@@ -118,77 +114,6 @@ def _parseFile(path):
                     currentList.append(t)
     return majorSections
 
-Library=collections.namedtuple("Library",["nodeTypes","libSource"])
-
-def loadLibrary(path):
-    """
-    
-    path should be a path to a library folder
-    
-    returns a Library made from the contents of the passed folder path.
-    
-    """
-    
-    
-    nodes={}
-    libs=[]
-    
-    for root, dirs, files in os.walk(path):
-        for name in files:
-            ext=os.path.splitext(name)[1]
-            if ext==".txt":
-                currentFile=join(root, name)
-                for key,xitems in _parseFile(currentFile).iteritems():
-                    if key=="node":
-                        for items in xitems:
-                            if "info" not in items:
-                                print "node missing info section in: "+currentFile
-                            else:
-                                
-                                
-                                info=_parseInfoLines(items["info"],currentFile)
-                                
-                                if "name" not in info:
-                                    print "invalid info entry missing name in: "+currentFile
-                                else:
-                                    name=info["name"]
-                                    
-                                    shaderInputs=[]
-                                    if "shaderinputs" in items:
-                                        for s in items["shaderinputs"]:
-                                            shaderInputs.append(shaderParamFromDefCode(s))
-                                    shaderOutputs=[]
-                                    if "shaderoutputs" in items:
-                                        for s in items["shaderoutputs"]:
-                                            shaderOutputs.append(shaderParamFromDefCode(s))
-                                    
-                                    inLinks=[]
-                                    if "inlinks" in items:
-                                        for s in items["inlinks"]:
-                                            inLinks.append(linkEndFromDefCode(s))
-                                    outLinks=[]
-                                    if "outlinks" in items:
-                                        for s in items["outlinks"]:
-                                            outLinks.append(linkEndFromDefCode(s))
-                                    
-                                    
-                                    code=""
-                                    if "code" in items:
-                                        code="\n".join(items["code"])
-                                    
-                                    class_=info.get("class")
-                                    
-                                    nodes[name]=makeNodeType(class_,shaderInputs,shaderOutputs,inLinks,outLinks,code)
-                            
-                    elif key=="lib":
-                        libs.append(xitems)
-                    else:
-                        print "Warning: throwing away invalid majorSection with unrecognized name: "+key+" in file: "+currentFile
-                        
-    libSource="\n".join(itertools.chain.from_iterable(lib["code"] for lib in itertools.chain.from_iterable(libs) if "code" in lib))
-    return Library(nodes,libSource)
-    
-
 def _parseInfoLines(lines,currentFile):
     info={}
     for line in lines:
@@ -199,71 +124,172 @@ def _parseInfoLines(lines,currentFile):
             info[s[0]]=s[1]
     return info
     
-def loadGraph(path,library):
-    """
+
+
+class Library(object):
+    def __init__(self,path,nodeTypeClassMap={}):
+        """
     
-    path should be a path to a graph text file, and library should be a Library from loadLibrary
-    
-    """
-    nodeTypes,libSource=library
-    links={}
-    nodes=[]
-    d=_parseFile(path)
-    for items in d["link"]:
-        if "info" not in items:
-            print "link missing info section in: "+path
-        else:
-            info=_parseInfoLines(items["info"],path)
-            
-            if "name" not in info:
-                print "invalid info entry missing name in: "+path
-            else:
-                name=info["name"]
-                if "type" not in info:
-                    print "invalid info entry missing type in link: "+name+" in file: "+path
-                else:
-                    dataType=info["type"]
-                    links[name]=Link(dataType)
-                    
-    for items in d["node"]:
-        if "info" not in items:
-            print "node missing info section in: "+path
-        else:
-            
-            
-            info=_parseInfoLines(items["info"],path)
-            
-            if "name" not in info:
-                print "invalid info entry missing name in: "+path
-            else:
-                name=info["name"]
-                if "stage" not in info:
-                    print "invalid info entry missing stage in: "+path
-                else:
-                    stage=info["stage"]
-                    inLinks=[]
-                    outLinks=[]
-                    if "inlinks" in items:
-                        for s in items["inlinks"]:
-                            if s in links:
-                                inLinks.append(links[s])
-                            else:
-                                print "missing link of name: "+s+" in file: "+path
-                                
-                    if "outlinks" in items:
-                        for s in items["outlinks"]:
-                            if s in links:
-                                outLinks.append(links[s])
-                            else:
-                                print "missing link of name: "+s+" in file: "+path
-                    
-                    nodes.append(nodeTypes[name].getNode(stage,inLinks,outLinks))
+        path should be a path to a library folder
         
-        extraKeys=set(d.keys())-set(["link","node"])
-        if extraKeys:
-            print "Warning: throwing away invalid majorSections with unrecognized names: "+str(extraKeys)+" in file: "+currentFile
+        builds an instance made from the contents of the passed folder path.
+        
+        
+        nodeTypeClassMap should be a dict mapping strings to NodeType subclasses.
+        The strings should correspond to the "class" info field used in the nodes in the library.
+        no "class" info (a None in the dictionary) maps to NodeType, not a subclass.
+        
+        
+        """
+        
+        
+        self.nodeTypeClassMap={None:NodeType}
+        self.nodeTypeClassMap.update(nodeTypeClassMap)
+        self.loadPath(path)
+        
+    def loadPath(self,path):
+        """
+        
+        called by init, but can be called again if you wish to reload the same path, or a different one
+        
+        """
+        
+        
+        nodes={}
+        libs=[]
+        
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                ext=os.path.splitext(name)[1]
+                if ext==".txt":
+                    currentFile=join(root, name)
+                    for key,xitems in _parseFile(currentFile).iteritems():
+                        if key=="node":
+                            for items in xitems:
+                                if "info" not in items:
+                                    print "node missing info section in: "+currentFile
+                                else:
+                                    
+                                    
+                                    info=_parseInfoLines(items["info"],currentFile)
+                                    
+                                    if "name" not in info:
+                                        print "invalid info entry missing name in: "+currentFile
+                                    else:
+                                        name=info["name"]
+                                        
+                                        shaderInputs=[]
+                                        if "shaderinputs" in items:
+                                            for s in items["shaderinputs"]:
+                                                shaderInputs.append(shaderParamFromDefCode(s))
+                                        shaderOutputs=[]
+                                        if "shaderoutputs" in items:
+                                            for s in items["shaderoutputs"]:
+                                                shaderOutputs.append(shaderParamFromDefCode(s))
+                                        
+                                        inLinks=[]
+                                        if "inlinks" in items:
+                                            for s in items["inlinks"]:
+                                                inLinks.append(linkEndFromDefCode(s))
+                                        outLinks=[]
+                                        if "outlinks" in items:
+                                            for s in items["outlinks"]:
+                                                outLinks.append(linkEndFromDefCode(s))
+                                        
+                                        
+                                        code=""
+                                        if "code" in items:
+                                            code="\n".join(items["code"])
+                                        
+                                        class_=info.get("class")
+                                        
+                                        nclass=self.nodeTypeClassMap.get(class_)
+                                        if nclass is None:
+                                            nclass=self.nodeTypeClassMap[None]
+                                            print "Warning: unrecognized class: "+class_+" in file: "+currentFile
+                                            
+                                        nodes[name]=nclass(shaderInputs,shaderOutputs,inLinks,outLinks,code)
+                                
+                        elif key=="lib":
+                            libs.append(xitems)
+                        else:
+                            print "Warning: throwing away invalid majorSection with unrecognized name: "+key+" in file: "+currentFile
+                            
+        libSource="\n".join(itertools.chain.from_iterable(lib["code"] for lib in itertools.chain.from_iterable(libs) if "code" in lib))
+        
+        self.nodes=nodes
+        self.libSource=libSource
     
-    return ShaderBuilder(nodes,libSource)
+
+
+    def loadGraph(self,path):
+        """
+        
+        path should be a path to a graph text file
+        
+        """
+        
+        nodeTypes=self.nodes
+        libSource=self.libSource
+        
+        links={}
+        nodes=[]
+        d=_parseFile(path)
+        for items in d["link"]:
+            if "info" not in items:
+                print "link missing info section in: "+path
+            else:
+                info=_parseInfoLines(items["info"],path)
+                
+                if "name" not in info:
+                    print "invalid info entry missing name in: "+path
+                else:
+                    name=info["name"]
+                    if "type" not in info:
+                        print "invalid info entry missing type in link: "+name+" in file: "+path
+                    else:
+                        dataType=info["type"]
+                        links[name]=Link(dataType)
+                        
+        for items in d["node"]:
+            if "info" not in items:
+                print "node missing info section in: "+path
+            else:
+                
+                
+                info=_parseInfoLines(items["info"],path)
+                
+                if "name" not in info:
+                    print "invalid info entry missing name in: "+path
+                else:
+                    name=info["name"]
+                    if "stage" not in info:
+                        print "invalid info entry missing stage in: "+path
+                    else:
+                        stage=info["stage"]
+                        inLinks=[]
+                        outLinks=[]
+                        if "inlinks" in items:
+                            for s in items["inlinks"]:
+                                if s in links:
+                                    inLinks.append(links[s])
+                                else:
+                                    print "missing link of name: "+s+" in file: "+path
+                                    
+                        if "outlinks" in items:
+                            for s in items["outlinks"]:
+                                if s in links:
+                                    outLinks.append(links[s])
+                                else:
+                                    print "missing link of name: "+s+" in file: "+path
+                        
+                        nodes.append(nodeTypes[name].getNode(stage,inLinks,outLinks))
+            
+            extraKeys=set(d.keys())-set(["link","node"])
+            if extraKeys:
+                print "Warning: throwing away invalid majorSections with unrecognized names: "+str(extraKeys)+" in file: "+currentFile
+        
+        return ShaderBuilder(nodes,libSource)
     
 
 
