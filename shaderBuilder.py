@@ -17,7 +17,8 @@ class NodeType(object):
     each instance represents a node type defined in a library
     
     """
-    def __init__(self,shaderInputs=[],shaderOutputs=[],inLinks=[],outLinks=[],code=""):
+    def __init__(self,name,shaderInputs=[],shaderOutputs=[],inLinks=[],outLinks=[],code=""):
+        self.name=name
         self.shaderInputs=shaderInputs
         self.shaderOutputs=shaderOutputs
         self.inLinks=inLinks
@@ -60,12 +61,95 @@ class NodeType(object):
             if t0!=t1:
                 print "Error: mismatched type on outlink. Got: "+t1+" expected: "+t0
                 
-        return Node(stage,self.shaderInputs,self.shaderOutputs,inLinks,outLinks,self.code)
+        return Node(self,stage,inLinks,outLinks)
+    
+    def getActiveNode(self,node,renderState,linkStatus):
+        """
+        
+        override this method to make custom types of nodes that vary based on renderState and linkStatus
+        
+        """
+        return ActiveNode(node.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(node.inLinks),tuple(node.outLinks),self.code)
 
     def __repr__(self):
-        return "NodeType"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,self.code]))
+        return "NodeType"+str(tuple([self.name,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,self.code]))
 
+class Node(object):
+    """
+    
+    A shader node. They can be connected to others using Links to form a graph.
+    
+    Specifically, the nodes and links form a cycle free directed multigraph, with data on both the edges and nodes.
+    
+    """
+    def __init__(self,nodeType,stage,inLinks=None,outLinks=None):
+        self.nodeType=nodeType
+        self.stage=stage
+        self.inLinks=inLinks if inLinks else []
+        self.outLinks=outLinks if outLinks else []
+    def getStage(self): return self.stage
+    def getInLinks(self): return self.inLinks
+    def getOutLinks(self): return self.outLinks
+    def getActiveNode(self,renderState,linkStatus): return self.nodeType.getActiveNode(self,renderState,linkStatus)
+    def __repr__(self):
+        return "Node"+str(tuple([self.stage,self.inLinks,self.outLinks]))
 
+class ActiveNode(object):
+    """
+    
+    ActiveNodes should never be modified, and should not be subclassed.
+    
+    They use the Flyweight pattern, and thus can be compared by pointer with "is"
+    
+    This is important as they are hashed by pointer,
+    and need to compare properly and quicky for the caching to work.
+    
+    """
+    cache = {}
+    
+    def __new__(cls, *v):
+        o = cls.cache.get(v, None)
+        if o:
+            return o
+        else:
+            o = cls.cache[v] = object.__new__(cls)
+            return o
+    def __init__(self,stage,shaderInputs,shaderOutputs,inLinks,outLinks,code):
+        self.stage=stage
+        self.shaderInputs=shaderInputs
+        self.shaderOutputs=shaderOutputs
+        self.inLinks=inLinks
+        self.outLinks=outLinks
+        self.code=code
+    def getShaderInputs(self): return self.shaderInputs
+    def getShaderOutputs(self): return self.shaderOutputs
+    def getInLinks(self): return self.inLinks
+    def getOutLinks(self): return self.outLinks
+    def isOutPut(self): return len(self.getShaderOutputs())>0
+    def getCode(self): return self.code
+    def getStage(self): return self.stage
+    def __repr__(self):
+        return "ActiveNode"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
+
+        
+class Link(object):
+    """
+    
+    An output from a shader Node, and possibly multiple inputs to multiple shader nodes.
+    
+    As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
+    
+    """
+    def __init__(self,dataType,name="<Unnamed>"):
+        self.dataType=dataType
+        self.name=name
+    def getType(self): return self.dataType
+    def __repr__(self):
+        return "Link"+str(tuple([self.dataType,self.name]))
+        
+        
+        
+        
 
 def _parseFile(path):
     majorSections=collections.defaultdict(list)
@@ -208,7 +292,7 @@ class Library(object):
                                             nclass=self.nodeTypeClassMap[None]
                                             print "Warning: unrecognized class: "+class_+" in file: "+currentFile
                                         
-                                        node=nclass(shaderInputs,shaderOutputs,inLinks,outLinks,code)
+                                        node=nclass(name,shaderInputs,shaderOutputs,inLinks,outLinks,code)
                                         if name in nodes:
                                             print "Warning: overwriting node "+repr(nodes[name])+" with "+repr(node)+" from "+currentFile
                                         nodes[name]=node
@@ -349,88 +433,8 @@ class ShaderParam(Param):
 class ShaderInput(ShaderParam): pass
 class ShaderOutput(ShaderParam): pass
 
-class ActiveNode(object):
-    """
     
-    ActiveNodes should never be modified, and should not be subclassed.
-    
-    They use the Flyweight pattern, and thus can be compared by pointer with "is"
-    
-    This is important as they are hashed by pointer,
-    and need to compare properly and quicky for the caching to work.
-    
-    """
-    cache = {}
-    
-    def __new__(cls, *v):
-        o = cls.cache.get(v, None)
-        if o:
-            return o
-        else:
-            o = cls.cache[v] = object.__new__(cls)
-            return o
-    def __init__(self,stage,shaderInputs,shaderOutputs,inLinks,outLinks,code):
-        self.stage=stage
-        self.shaderInputs=shaderInputs
-        self.shaderOutputs=shaderOutputs
-        self.inLinks=inLinks
-        self.outLinks=outLinks
-        self.code=code
-    def getShaderInputs(self): return self.shaderInputs
-    def getShaderOutputs(self): return self.shaderOutputs
-    def getInLinks(self): return self.inLinks
-    def getOutLinks(self): return self.outLinks
-    def isOutPut(self): return len(self.getShaderOutputs())>0
-    def getCode(self): return self.code
-    def getStage(self): return self.stage
-    def __repr__(self):
-        return "ActiveNode"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
-    
-class Node(object):
-    """
-    
-    A shader node. They can be connected to others using Links to form a graph.
-    
-    Specifically, the nodes and links form a cycle free directed multigraph, with data on both the edges and nodes.
-    
-    """
-    def __init__(self,stage,shaderInputs=None,shaderOutputs=None,inLinks=None,outLinks=None,code=""):
-        self.stage=stage
-        self.shaderInputs=shaderInputs if shaderInputs else []
-        self.shaderOutputs=shaderOutputs if shaderOutputs else []
-        self.inLinks=inLinks if inLinks else []
-        self.outLinks=outLinks if outLinks else []
-        self.code=code
-    def getStage(self): return self.stage
-    def getInLinks(self): return self.inLinks
-    def getOutLinks(self): return self.outLinks
-    def getActiveNode(self,renderState,linkStatus):
-        """
-        
-        override this method to make custom types of nodes that vary based on renderState and linkStatus
-        
-        """
-        return ActiveNode(self.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(self.inLinks),tuple(self.outLinks),self.code)
 
-    def __repr__(self):
-        return "Node"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
-
-
-        
-class Link(object):
-    """
-    
-    An output from a shader Node, and possibly multiple inputs to multiple shader nodes.
-    
-    As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
-    
-    """
-    def __init__(self,dataType,name="<Unnamed>"):
-        self.dataType=dataType
-        self.name=name
-    def getType(self): return self.dataType
-    def __repr__(self):
-        return "Link"+str(tuple([self.dataType,self.name]))
 
 class AutoNamer(object):
     """
