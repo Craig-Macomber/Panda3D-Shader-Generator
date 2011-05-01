@@ -42,8 +42,10 @@ class NodeType(object):
              )
 
         self.code="("+",".join(fparamChain)+"){\n"+code+"\n}"
-        
-    def getNode(self,stage,inLinks=[],outLinks=[]):
+    
+    def getName(self): return self.name
+    
+    def getNode(self,stage,inLinks=[],outLinks=[],getDataDict={}):
         if len(inLinks)!=len(self.inLinks):
             print "Error: number of inputs does not match node type. Inputs: "+str(inLinks)+" expected: "+str(self.inLinks)
             return None
@@ -87,9 +89,11 @@ class Node(object):
         self.stage=stage
         self.inLinks=inLinks if inLinks else []
         self.outLinks=outLinks if outLinks else []
+    def getType(self): return self.nodeType
     def getStage(self): return self.stage
     def getInLinks(self): return self.inLinks
     def getOutLinks(self): return self.outLinks
+    def getDataDict(self): return {}
     def getActiveNode(self,renderState,linkStatus): return self.nodeType.getActiveNode(self,renderState,linkStatus)
     def __repr__(self):
         return "Node"+str(tuple([self.stage,self.inLinks,self.outLinks]))
@@ -140,7 +144,7 @@ class Link(object):
     As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
     
     """
-    def __init__(self,dataType,name="<Unnamed>"):
+    def __init__(self,dataType,name="Unnamed"):
         self.dataType=dataType
         self.name=name
     def getType(self): return self.dataType
@@ -196,6 +200,7 @@ def _parseFile(path):
                     print warnText()+"throwing away invalid line occuring before first section in: "+path+" section: "+str(section)
                 elif currentList!=None:
                     currentList.append(t)
+    f.close()
     return majorSections
 
 def _parseInfoLines(lines,currentFile):
@@ -309,7 +314,7 @@ class Library(object):
     
 
 
-    def loadGraph(self,path):
+    def parseGraph(self,path):
         """
         
         path should be a path to a graph text file
@@ -317,7 +322,6 @@ class Library(object):
         """
         
         nodeTypes=self.nodes
-        libSource=self.libSource
         
         links={}
         nodes=[]
@@ -370,13 +374,68 @@ class Library(object):
                                 else:
                                     print "missing link of name: "+s+" in file: "+path
                         
-                        nodes.append(nodeTypes[type].getNode(stage,inLinks,outLinks))
+                        dataDict={}
+                        if "data" in items:
+                            dataDict=_parseInfoLines(items["data"],currentFile)
+                        
+                        nodes.append(nodeTypes[type].getNode(stage,inLinks,outLinks,dataDict))
             
             extraKeys=set(d.keys())-set(["link","node"])
             if extraKeys:
                 print "Warning: throwing away invalid majorSections with unrecognized names: "+str(extraKeys)+" in file: "+currentFile
         
-        return ShaderBuilder(nodes,libSource)
+        return nodes
+    
+    def saveGraph(self,nodes,path):
+        
+        # get all links
+        links=set()
+        for n in nodes:
+            links.update(n.getOutLinks())
+            links.update(n.getInLinks())
+        
+        # force all links to have unique names
+        linkNamer=AutoNamer("link")
+        for n in links:
+            linkNamer.addItem(n)
+                
+        
+        
+        
+        f = open(path, 'w')
+        f.write("# Graph file for shader generator #\n")
+        
+        linkDict=linkNamer.getItems()
+        for link,name in linkDict.iteritems():
+            f.write(":: link\n")
+            f.write(": info\n")
+            f.write("name "+name+"\n")
+            f.write("type "+link.getType()+"\n")
+        
+        
+        
+        for n in nodes:
+            f.write(":: node\n")
+            f.write(": info\n")
+            type=n.getType().getName()
+            f.write("type "+type+"\n")
+            f.write("stage "+n.getStage()+"\n")
+            d=n.getDataDict()
+            if d:
+                f.write(": data\n")
+                for key,value in d.iteritems():
+                    f.write(key+" "+value+"\n")
+            f.write(": outlinks\n")
+            for link in n.getOutLinks():
+                f.write(linkDict[link]+"\n")
+            f.write(": inlinks\n")
+            for link in n.getInLinks():
+                f.write(linkDict[link]+"\n")
+            
+        f.close()
+    def loadGraph(self,path):
+        nodes=self.parseGraph(path)
+        return ShaderBuilder(nodes,self.libSource)
     
 
 

@@ -1,9 +1,12 @@
 from shaderBuilder import *
 lib=Library("library")
-g=lib.loadGraph("graph/lit.txt")
+
+
+gg=lib.parseGraph("graph/lit.txt")
+lib.saveGraph(gg,"ShadersOut/debug.txt")
+
+g=lib.loadGraph("ShadersOut/debug.txt")
 s = g.getShader(None,"ShadersOut/debug.sha")
-
-
 """
 Shader Generator Demo
 
