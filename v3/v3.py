@@ -662,7 +662,7 @@ class ShaderBuilder(object):
         
         toProcess=set(bottomActiveOutputs)
         neededNodes=[] # nodes needed from bottom up. The reverse of this is an ok order to compute them in.
-        processed=set() # a set of the processed/needed nodes. Set for fast membership testing
+        processed=set()
         
         while toProcess:
             n=toProcess.pop()
@@ -683,7 +683,7 @@ class ShaderBuilder(object):
                             sourceReady=False
                             break
                 if sourceReady: # if all outputs already processed, process it
-                    toProcess.add(dst)
+                    toProcess.add(source)
         
         
         # check casheByNodes.
