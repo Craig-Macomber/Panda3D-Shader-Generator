@@ -609,11 +609,11 @@ class ShaderBuilder(object):
         linkToSource={}
         
         toProcess=set(self.topNodes)
-        processed=set()
+        
         
         while toProcess:
             n=toProcess.pop()
-            processed.add(n)
+            
             
             a=n.getActiveNode(renderState,linkStatus)
             activeOutLinks.update(a.getOutLinks())
@@ -645,13 +645,14 @@ class ShaderBuilder(object):
         toVisit=set(activeOutputs)
         linkToActiveDst=collections.defaultdict(set)
         
-        for n in toVisit:
+        while toVisit:
+            n=toVisit.pop()
             if n not in visited:
                 visited.add(n)
                 inLinks=n.getInLinks()
                 for link in inLinks:
                     linkToActiveDst[link].add(n)
-                    a=linkToSource(link)
+                    a=linkToSource[link]
                     if a not in visited:
                         bottomActiveOutputs.discard(a)
                         toVisit.add(a)
@@ -660,12 +661,14 @@ class ShaderBuilder(object):
         # this will generate the minimal part of the graph needed to provide the inputs
         
         toProcess=set(bottomActiveOutputs)
-        neededNodes=[]
-
+        neededNodes=[] # nodes needed from bottom up. The reverse of this is an ok order to compute them in.
+        processed=set() # a set of the processed/needed nodes. Set for fast membership testing
+        
         while toProcess:
             n=toProcess.pop()
             neededNodes.append(n)
-            
+            processed.add(n)
+
             # see if nodes providing input should be processed yet
             inLinks=n.getInLinks()
             for inLink in inLinks: # for all inputs to n
