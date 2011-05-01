@@ -1,7 +1,7 @@
 from v3 import *
 lib=Library("library")
 g=lib.loadGraph("graph/lit.txt")
-s = g.getShader(None,"test.sha")
+s = g.getShader(None,"../ShadersOut/debug.sha")
 
 
 """

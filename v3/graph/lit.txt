@@ -31,21 +31,21 @@ type float3
 
 :: node
 : info
-name redOut
+type redOut
 stage fshader
 : outlinks
 diffuseColor
 
 :: node
 : info
-name colorOut
+type colorOut
 stage fshader
 : inlinks
 lighting
 
 :: node
 : info
-name directionalLight
+type directionalLight
 stage fshader
 : outlinks
 specularLight
@@ -53,7 +53,7 @@ diffuseLight
 
 :: node
 : info
-name float3Sum
+type float3Sum
 stage fshader
 : inlinks
 diffuse
@@ -64,7 +64,7 @@ lighting
 
 :: node
 : info
-name float3Multiply
+type float3Multiply
 stage fshader
 : inlinks
 diffuseColor
@@ -77,12 +77,12 @@ diffuse
 
 :: node
 : info
-name vertProject
+type vertProject
 stage vshader
 
 :: node
 : info
-name vertexNormal
+type vertexNormal
 stage vshader
 : inlinks
 : outlinks
@@ -91,7 +91,7 @@ vertexNormal
 
 :: node
 : info
-name exportNormal
+type exportNormal
 stage vshader
 : inlinks
 vertexNormal

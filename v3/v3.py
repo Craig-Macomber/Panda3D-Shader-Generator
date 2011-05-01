@@ -207,8 +207,11 @@ class Library(object):
                                         if nclass is None:
                                             nclass=self.nodeTypeClassMap[None]
                                             print "Warning: unrecognized class: "+class_+" in file: "+currentFile
-                                            
-                                        nodes[name]=nclass(shaderInputs,shaderOutputs,inLinks,outLinks,code)
+                                        
+                                        node=nclass(shaderInputs,shaderOutputs,inLinks,outLinks,code)
+                                        if name in nodes:
+                                            print "Warning: overwriting node "+repr(nodes[name])+" with "+repr(node)+" from "+currentFile
+                                        nodes[name]=node
                                 
                         elif key=="lib":
                             libs.append(xitems)
@@ -259,10 +262,10 @@ class Library(object):
                 
                 info=_parseInfoLines(items["info"],path)
                 
-                if "name" not in info:
-                    print "invalid info entry missing name in: "+path
+                if "type" not in info:
+                    print "invalid info entry missing type in: "+path
                 else:
-                    name=info["name"]
+                    type=info["type"]
                     if "stage" not in info:
                         print "invalid info entry missing stage in: "+path
                     else:
@@ -283,7 +286,7 @@ class Library(object):
                                 else:
                                     print "missing link of name: "+s+" in file: "+path
                         
-                        nodes.append(nodeTypes[name].getNode(stage,inLinks,outLinks))
+                        nodes.append(nodeTypes[type].getNode(stage,inLinks,outLinks))
             
             extraKeys=set(d.keys())-set(["link","node"])
             if extraKeys:

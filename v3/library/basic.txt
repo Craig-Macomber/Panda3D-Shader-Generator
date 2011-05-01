@@ -33,28 +33,6 @@ l_normal=norm;
 
 :: node
 : info
-name float3Multiply
-: outlinks
-float3 product
-: inlinks
-float3 a
-float3 b
-: code
-product=a*b;
-
-:: node
-: info
-name float3Sum
-: outlinks
-float3 sum
-: inlinks
-float3 a
-float3 b
-: code
-sum=a+b;
-
-:: node
-: info
 name directionalLight
 : shaderinputs
 uniform float4x4 dlight_dlight_to_model
