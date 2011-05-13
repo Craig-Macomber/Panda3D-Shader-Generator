@@ -1,17 +1,3 @@
-from shaderBuilder import *
-lib=Library("library")
-
-
-gg=lib.parseGraph("graph/lit.txt")
-lib.saveGraph(gg,"ShadersOut/debug.txt")
-
-g=lib.loadGraph("ShadersOut/debug.txt")
-s = g.getShader(None,"ShadersOut/debug.sha")
-"""
-Shader Generator Demo
-
-"""
-
 from pandac.PandaModules import *
 from direct.task import Task
 from direct.actor import Actor
@@ -19,6 +5,33 @@ from direct.interval.IntervalGlobal import *
 import math
 import direct.directbase.DirectStart
 print PandaSystem.getVersionString()
+
+from shaderBuilder import *
+
+
+
+lib=Library("library")
+
+
+#gg=lib.parseGraph("graph/lit.txt")
+#lib.saveGraph(gg,"ShadersOut/debug.txt")
+
+#g=lib.loadGraph("ShadersOut/debug.txt")
+#s = g.getShader(None,"ShadersOut/debug.sha")
+
+import editor
+ed=editor.Editor(lib,"graph/lit.txt")
+ed.save("ShadersOut/debug.txt")
+builder=ed.previewBuilder()
+s = builder.getShader(None,"ShadersOut/debug.sha")
+
+
+"""
+Shader Generator Demo
+
+"""
+
+
 
 
 

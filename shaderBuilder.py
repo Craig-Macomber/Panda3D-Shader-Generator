@@ -433,9 +433,13 @@ class Library(object):
                 f.write(linkDict[link]+"\n")
             
         f.close()
+    
+    def makeBuilder(self,nodes):
+        return ShaderBuilder(nodes,self.libSource)
+        
     def loadGraph(self,path):
         nodes=self.parseGraph(path)
-        return ShaderBuilder(nodes,self.libSource)
+        return makeBuilder(nodes)
     
 
 
@@ -573,8 +577,7 @@ class StageBuilder(object):
         source='\n'.join(reversed(self.sourceLines))
         return header+linkDeclarations+'\n\n'+source+'\n'+footer
 
-
-
+    
 
 class ShaderBuilder(object):
     """
@@ -632,10 +635,13 @@ class ShaderBuilder(object):
         toProcess=set(self.topNodes)
         processed=set()
         processedLinks=set()
+        self.sortedNodes=[]
         
+        # process from top down (topological sort), cycles will get skipped, which we use to detect them
         while toProcess:
             n=toProcess.pop()
             processed.add(n)
+            self.sortedNodes.append(n)
             
             outLinks=n.getOutLinks()
             processedLinks.update(outLinks)
@@ -663,6 +669,9 @@ class ShaderBuilder(object):
         noChache forces the generation of the shader (but it will still get cached).
         Useful for use with debugFile if you need to see the source, but it may be cached
         
+        caching system isn't verg good in the case where the render state is different, but the resulting shader is the same.
+        It will find the shader in the cache, but it will take a while.
+        
         """
         
         shader=self.cache.get(renderState)
@@ -671,43 +680,52 @@ class ShaderBuilder(object):
             return shader
         
 
-        # process from top down to see what part of graph is active, and produce active graph
+        # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
         # nodes are only processed when all nodes above them have been processed.
-        # which will then be processed bottom up to generate shader
         
         activeOutputs=set() # set of activeNodes that might be needed
         activeOutLinks=set()
         
         linkStatus={}
         linkToSource={}
-        
-        toProcess=set(self.topNodes)
-        
-        
-        while toProcess:
-            n=toProcess.pop()
-            
-            
+
+        for n in self.sortedNodes:
             a=n.getActiveNode(renderState,linkStatus)
             activeOutLinks.update(a.getOutLinks())
             outLinks=a.getOutLinks()
             for link in outLinks:
                 linkStatus[link]= link in activeOutLinks
                 linkToSource[link]=a
-                    
-            for link in outLinks:
-                for dst in self.linkToDst[link]:
-                    inLinks=dst.getInLinks()
-                    for l in inLinks:
-                        if l not in linkStatus: break
-                    else:
-                        toProcess.add(dst)
             
             if a.isOutPut():
                 activeOutputs.add(a)
+
+#         toProcess=set(self.topNodes)
+#         
+#         
+#         while toProcess:
+#             n=toProcess.pop()
+#             
+#             
+#             a=n.getActiveNode(renderState,linkStatus)
+#             activeOutLinks.update(a.getOutLinks())
+#             outLinks=a.getOutLinks()
+#             for link in outLinks:
+#                 linkStatus[link]= link in activeOutLinks
+#                 linkToSource[link]=a
+#                     
+#             for link in outLinks:
+#                 for dst in self.linkToDst[link]:
+#                     inLinks=dst.getInLinks()
+#                     for l in inLinks:
+#                         if l not in linkStatus: break
+#                     else:
+#                         toProcess.add(dst)
+#             
+#             if a.isOutPut():
+#                 activeOutputs.add(a)
         
-        
-        
+
         
         # scan of active nodes to find bottoms that are needed for activeOutputs
         # walk upward from all activeOutputs marking visited nodes
@@ -731,14 +749,18 @@ class ShaderBuilder(object):
                         toVisit.add(a)
                         
         
+        
+        
         # some sanity checks
+        # TODO : Disable these for performance
         for link,dsts in linkToActiveDst.iteritems():
             for dst in dsts:
                 assert link in dst.getInLinks()
         
         for link,source in linkToSource.iteritems():
             assert link in source.getOutLinks()
-            
+           
+        
             
         
         # generate shader upwards from bottomActiveOutputs
