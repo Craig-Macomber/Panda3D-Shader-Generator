@@ -676,7 +676,7 @@ class ShaderBuilder(object):
         
         shader=self.cache.get(renderState)
         if shader and not noChache:
-            print "Shader is cached. Skipping generating shader to: "+debugFile
+            if debugFile: print "Shader is cached. Skipping generating shader to: "+debugFile
             return shader
         
 
@@ -688,9 +688,12 @@ class ShaderBuilder(object):
         
         linkStatus={}
         linkToSource={}
-
+        
+        sortedActive=[]
+        
         for n in self.sortedNodes:
             a=n.getActiveNode(renderState,linkStatus)
+            sortedActive.append(a)
             activeOutLinks.update(a.getOutLinks())
             outLinks=a.getOutLinks()
             for link in outLinks:
@@ -700,107 +703,24 @@ class ShaderBuilder(object):
             if a.isOutPut():
                 activeOutputs.add(a)
 
-#         toProcess=set(self.topNodes)
-#         
-#         
-#         while toProcess:
-#             n=toProcess.pop()
-#             
-#             
-#             a=n.getActiveNode(renderState,linkStatus)
-#             activeOutLinks.update(a.getOutLinks())
-#             outLinks=a.getOutLinks()
-#             for link in outLinks:
-#                 linkStatus[link]= link in activeOutLinks
-#                 linkToSource[link]=a
-#                     
-#             for link in outLinks:
-#                 for dst in self.linkToDst[link]:
-#                     inLinks=dst.getInLinks()
-#                     for l in inLinks:
-#                         if l not in linkStatus: break
-#                     else:
-#                         toProcess.add(dst)
-#             
-#             if a.isOutPut():
-#                 activeOutputs.add(a)
-        
+        # walk upward to find all needed nodes
 
+        neededSet=set(activeOutputs)
+        neededNodes=[]
         
-        # scan of active nodes to find bottoms that are needed for activeOutputs
-        # walk upward from all activeOutputs marking visited nodes
-        # and removing any activeOutputs hit from set of bottomActiveOutputs as they will be generated
-        # as a result of others
-        bottomActiveOutputs=set(activeOutputs)
-        visited=set()
-        toVisit=set(activeOutputs)
-        linkToActiveDst=collections.defaultdict(set)
-        
-        while toVisit:
-            n=toVisit.pop()
-            if n not in visited:
-                visited.add(n)
-                inLinks=n.getInLinks()
-                for link in inLinks:
-                    linkToActiveDst[link].add(n)
-                    a=linkToSource[link]
-                    if a not in visited:
-                        bottomActiveOutputs.discard(a)
-                        toVisit.add(a)
-                        
-        
-        
-        
-        # some sanity checks
-        # TODO : Disable these for performance
-        for link,dsts in linkToActiveDst.iteritems():
-            for dst in dsts:
-                assert link in dst.getInLinks()
-        
-        for link,source in linkToSource.iteritems():
-            assert link in source.getOutLinks()
-           
-        
-            
-        
-        # generate shader upwards from bottomActiveOutputs
-        # this will generate the minimal part of the graph needed to provide the inputs
-        
-        toProcess=set(bottomActiveOutputs)
-        neededNodes=[] # nodes needed from bottom up. The reverse of this is an ok order to compute them in.
-        processed=set()
-        
-        while toProcess:
-            n=toProcess.pop()
-            neededNodes.append(n)
-            #print neededNodes
-            processed.add(n)
-            
-            # see if nodes providing input should be processed yet
-            inLinks=n.getInLinks()
-            for inLink in inLinks: # for all inputs to n
-                source=linkToSource[inLink]
-                assert source not in processed
-                assert source not in toProcess
-                outLinks=source.getOutLinks()
-                # check if all uses of outputs of source are already processed
-                sourceReady=True
-                for link in outLinks:
-                    if not sourceReady: break
-                    for dst in linkToActiveDst[link]:
-                        if dst not in processed:
-                            sourceReady=False
-                            break
-                if sourceReady: # if all outputs already processed, process it
-                    toProcess.add(source)
-        
-        
+        for n in reversed(sortedActive):
+            if n in neededSet:
+                neededNodes.append(n)
+                for link in n.getInLinks():
+                    neededSet.add(linkToSource[link])
+
+
         # check casheByNodes.
         # Many different RenderStates may produce the same ActiveNode graph, so this second cache is useful.
         neededSet=frozenset(neededNodes)
         shader=self.casheByNodes.get(neededSet)
         if shader and not noChache:
-            print "Shader is cached. Skipping generating shader to: "+debugFile
+            if debugFile: print "Shader is cached. Skipping generating shader to: "+debugFile
             return shader
         
             
