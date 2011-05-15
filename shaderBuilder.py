@@ -45,7 +45,7 @@ class NodeType(object):
     
     def getName(self): return self.name
     
-    def getNode(self,stage,inLinks=[],outLinks=[],getDataDict={}):
+    def getNode(self,stage,inLinks,outLinks,dataDict=None):
         if len(inLinks)!=len(self.inLinks):
             print "Error: number of inputs does not match node type. Inputs: "+str(inLinks)+" expected: "+str(self.inLinks)
             return None
@@ -63,7 +63,7 @@ class NodeType(object):
             if t0!=t1:
                 print "Error: mismatched type on outlink. Got: "+t1+" expected: "+t0
                 
-        return Node(self,stage,inLinks,outLinks)
+        return Node(self,stage,inLinks,outLinks,dataDict)
     
     def getActiveNode(self,node,renderState,linkStatus):
         """
@@ -84,16 +84,17 @@ class Node(object):
     Specifically, the nodes and links form a cycle free directed multigraph, with data on both the edges and nodes.
     
     """
-    def __init__(self,nodeType,stage,inLinks=None,outLinks=None):
+    def __init__(self,nodeType,stage,inLinks=None,outLinks=None,dataDict=None):
         self.nodeType=nodeType
         self.stage=stage
         self.inLinks=inLinks if inLinks else []
         self.outLinks=outLinks if outLinks else []
+        self.dataDict=dataDict if dataDict else {}
     def getType(self): return self.nodeType
     def getStage(self): return self.stage
     def getInLinks(self): return self.inLinks
     def getOutLinks(self): return self.outLinks
-    def getDataDict(self): return {}
+    def getDataDict(self): return self.dataDict
     def getActiveNode(self,renderState,linkStatus): return self.nodeType.getActiveNode(self,renderState,linkStatus)
     def __repr__(self):
         return "Node"+str(tuple([self.stage,self.inLinks,self.outLinks]))
