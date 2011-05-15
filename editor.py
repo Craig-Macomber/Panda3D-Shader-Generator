@@ -6,7 +6,7 @@ from panda3d.core import MouseWatcher
 from panda3d.core import ModifierButtons 
 from panda3d.core import KeyboardButton 
 from panda3d.core import ButtonThrower 
-from panda3d.core import CardMaker,PGTop, GraphicsOutput, WindowProperties
+from panda3d.core import CardMaker,PGTop, GraphicsOutput, WindowProperties, CardMaker
 
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
@@ -92,13 +92,110 @@ class Window(DirectObject):
         self.pixel2d.setScale(2.0 / self.win.getXSize(), 1.0, 2.0 / self.win.getYSize())
         self.panelNode.setPos(self.win.getXSize(),0,0)
 
+
+
+buttonHeight=20.0
+buttonWidth=150.0
+
+def frameProps(text,width,height=buttonHeight,borderWidth=2,textAlign=TextNode.ALeft):
+    """Get a dict for keyword params for DirectFrame classes"""
+    textx=borderWidth+2#width/2
+    return {
+        'frameSize':(0,width,0,height),
+        'text_pos':(textx,height-buttonHeight+buttonHeight/2.9),
+        'text_scale':(buttonHeight/1.5,buttonHeight/1.5),
+        'borderWidth':(borderWidth,borderWidth),
+        'text':text,
+        'text_align':textAlign,
+    }
+
+dataPrefix="editor_"
+def getData(node,name,default=None):
+    return node.getDataDict().get(dataPrefix+name,default)
+def setData(node,name,data):
+    node.getDataDict()[dataPrefix+name]=str(data)
+
+
+class NodeDisplay(object):
+    def __init__(self,n,editor):
+        self.n=n
+        self.editor=editor
+        self.frame=DirectButton(**frameProps(n.getType().getName(),buttonWidth))
+        self.frame.accept("mouse1",self.startDrag)
+        self.frame.reparentTo(editor.graphNode)
+        self.frame.setPythonTag("nodeDisplay",self)
+    def update(self):
+        x=int(getData(self.n,"x",100))
+        y=int(getData(self.n,"y",-100))
+        self.frame.setR(y) # random rotation test
+        self.frame.setPos(x,0,y)
+    def drag(self,deltaX,deltaY):
+        x=int(getData(self.n,"x",100))
+        y=int(getData(self.n,"y",-100))
+        setData(self.n,"x",x+deltaX)
+        setData(self.n,"y",y-deltaY)
+        self.update()
+        
+    def startDrag(self):
+        self.editor._setMouseState(1,True)
+        self.editor.dragSet=set([self])
+        self.editor.beginDrag()
+        
 class Editor(Window):
     def __init__(self,library,graphPath):
         Window.__init__(self)
         self.lib=library
         self.graphNode=self.pixel2d.attachNewNode("graphNode")
         self.loadPath(graphPath)
+        self.dragSet=set()
+        self.dragging=False
+        self.hadFocus=False
+        self.lastMouseX=self.lastMouseY=0
+        self.mouseDown=False
+        self.accept("mouse1",self._setMouseState,[1,True])
+        self.accept("mouse1-up",self._setMouseState,[1,False])
+        base.taskMgr.add(self.update,"update")
         
+    def _setMouseState(self,button,state):
+        self.mouseDown=state
+        event="mouseDown" if state else "mouseUp"
+        #self.handleEvent(event,self.lastMouseX,self.lastMouseY)
+        
+    def update(self,task=None):
+        if self.win.getProperties().getForeground():
+            data=self.win.getPointer(0)
+            x=data.getX()
+            y=data.getY()
+            if not self.hadFocus:
+                #gotFocus
+                self.hadFocus=True
+            else:
+                if self.lastMouseX!=x or self.lastMouseY!=y:
+                    if self.mouseDown:
+                        self.mouseDrag(self.lastMouseX,self.lastMouseY,x,y)
+                        
+                    else:
+                        if data.getInWindow():
+                            pass #mouseMove",self.lastMouseX,self.lastMouseY,x,y
+            self.lastMouseX=x
+            self.lastMouseY=y
+        else:
+            if self.hadFocus:
+                pass #lostFocus
+            self.hadFocus=False
+        return Task.cont
+        
+    def mouseDrag(self,lastMouseX,lastMouseY,x,y):
+        deltaX=x-lastMouseX
+        deltaY=y-lastMouseY
+        if self.dragging:
+            for d in self.dragSet:
+                d.drag(deltaX,deltaY)
+    
+    def beginDrag(self):
+        self.dragging=True
+        print "beginDrag"
+    
     def loadPath(self,graphPath):
         self.path=graphPath
         self.nodes=self.lib.parseGraph(self.path)
@@ -106,13 +203,21 @@ class Editor(Window):
     
     def redrawGraph(self):
         for c in self.graphNode.getChildren():
-            c.removeNode()
+            c.destroy()
         
         for n in self.nodes:
-            np=NodePath("graphNode")
-            np.reparentTo(self.graphNode)
+            display=NodeDisplay(n,self)
+
         
+        self.updateNodePaths()
         
+    def updateNodePaths(self):
+        for c in self.graphNode.getChildren():
+            self.updateNodePath(c)
+        
+    def updateNodePath(self,np):
+        np.getPythonTag("nodeDisplay").update()
+    
     def previewBuilder(self):
         return self.lib.makeBuilder(self.nodes)
         
