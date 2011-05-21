@@ -8,6 +8,8 @@ from panda3d.core import KeyboardButton
 from panda3d.core import ButtonThrower 
 from panda3d.core import CardMaker,PGTop, GraphicsOutput, WindowProperties, CardMaker
 
+
+
 from direct.showbase.DirectObject import DirectObject
 from direct.task import Task
 from direct.gui.DirectButton import DirectButton,DirectFrame
@@ -23,7 +25,7 @@ class Window(DirectObject):
         props=WindowProperties(WindowProperties.getDefault())
         props.setUndecorated(False)
         props.setOrigin(50,100)
-        props.setSize(900,750)
+        props.setSize(500,450)
         props.setTitle("Shader Editor")
         
         self.win=base.openWindow(props=props)
@@ -121,13 +123,12 @@ class NodeDisplay(object):
         self.n=n
         self.editor=editor
         self.frame=DirectButton(**frameProps(n.getType().getName(),buttonWidth))
-        self.frame.accept("mouse1",self.startDrag)
+        self.frame.bind(DGG.B1PRESS,self.startDrag)
         self.frame.reparentTo(editor.graphNode)
         self.frame.setPythonTag("nodeDisplay",self)
     def update(self):
         x=int(getData(self.n,"x",100))
         y=int(getData(self.n,"y",-100))
-        self.frame.setR(y) # random rotation test
         self.frame.setPos(x,0,y)
     def drag(self,deltaX,deltaY):
         x=int(getData(self.n,"x",100))
@@ -136,10 +137,11 @@ class NodeDisplay(object):
         setData(self.n,"y",y-deltaY)
         self.update()
         
-    def startDrag(self):
+    def startDrag(self,event=None):
         self.editor._setMouseState(1,True)
         self.editor.dragSet=set([self])
         self.editor.beginDrag()
+        return True
         
 class Editor(Window):
     def __init__(self,library,graphPath):
