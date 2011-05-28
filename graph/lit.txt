@@ -1,98 +1,109 @@
+# Graph file for shader generator #
 :: link
 : info
-name vertexNormal
+name link1
 type float3
-
 :: link
 : info
-name diffuseColor
+name link2
 type float3
-
 :: link
 : info
-name diffuseLight
+name link3
 type float3
-
 :: link
 : info
-name specularLight
+name link4
 type float3
-
 :: link
 : info
-name diffuse
+name link0
 type float3
-
 :: link
 : info
-name lighting
+name link5
 type float3
-
-
 :: node
 : info
 type redOut
 stage fshader
+: data
+editor_x 46
+editor_y -294
 : outlinks
-diffuseColor
-
+link5
+: inlinks
 :: node
 : info
 type colorOut
 stage fshader
+: data
+editor_x 391
+editor_y -209
+: outlinks
 : inlinks
-lighting
-
+link0
 :: node
 : info
 type directionalLight
 stage fshader
+: data
+editor_x 442
+editor_y -452
 : outlinks
-specularLight
-diffuseLight
-
+link3
+link4
+: inlinks
 :: node
 : info
 type float3Sum
 stage fshader
-: inlinks
-diffuse
-specularLight
+: data
+editor_x 66
+editor_y -446
 : outlinks
-lighting
-
-
+link0
+: inlinks
+link1
+link3
 :: node
 : info
 type float3Multiply
 stage fshader
-: inlinks
-diffuseColor
-diffuseLight
+: data
+editor_x 73
+editor_y -183
 : outlinks
-diffuse
-
-
-
-
+link1
+: inlinks
+link5
+link4
 :: node
 : info
 type vertProject
 stage vshader
-
+: data
+editor_x 276
+editor_y -56
+: outlinks
+: inlinks
 :: node
 : info
 type vertexNormal
 stage vshader
-: inlinks
+: data
+editor_x 346
+editor_y -117
 : outlinks
-vertexNormal
-
-
+link2
+: inlinks
 :: node
 : info
 type exportNormal
 stage vshader
-: inlinks
-vertexNormal
+: data
+editor_x 375
+editor_y -274
 : outlinks
+: inlinks
+link2

@@ -377,7 +377,7 @@ class Library(object):
                         
                         dataDict={}
                         if "data" in items:
-                            dataDict=_parseInfoLines(items["data"],currentFile)
+                            dataDict=_parseInfoLines(items["data"],path)
                         
                         nodes.append(nodeTypes[type].getNode(stage,inLinks,outLinks,dataDict))
             
