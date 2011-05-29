@@ -1,0 +1,35 @@
+A shader generator for Panda3D
+Goals:
+- Allow coders to provide all possible shader effects (no restrictions on shader code, stages used, inputs, outputs etc)
+- Allow easy realtime configuration and tuning of effects (accessible to artists and coders)
+- Generate custom shaders based on render state and other settings on a per NodePath basis from a single configuration
+- Allow easy use of multiple seperate configurations applied to different NodePaths (ex: one for deffered shaded lights, one for models, one for particles)
+
+It is important that adding, sharing and using libraries of effects is easy. To facilitate this, they are packed into libraries which can simply be placed in a libraries folder (even recursivly)
+There is however currently no namespacing. For now, manually prefix things if you with to avoide any potential conflicts.
+
+The focuse on allowing full control of the shaders is important. A shader generator that can't use custom shader inputs, render to multiple render targets, or use multiple stages (vshader, fshader etc) is not complete. This design inherently supports all of these, and more.
+
+ShaderEditor TODO:
+
+Make arrows point to correct spots on nodes
+Allow editing
+Add previewing
+Allow showing part of graph that is active (and perhaps other link status values) in editor for specific NodePaths
+
+
+
+ShaderBuilder TODO:
+
+
+generate matching semantics
+
+associate node links with nodeType params (by some exposed public name added to the params?)
+    allow multiple inputs to one source, which some nodeType might allow (ex: multiply all)
+
+allow editable params on NodeTypes. Saved on graph nodes, editable in editor (slider, text box, color picker etc)
+    NodeType can provide editing widget --> extensible for custom nodeTypes
+    
+
+
+Allow non boolean link status (to propogate compile time information, ex: constants, LODs etc)
