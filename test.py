@@ -84,7 +84,7 @@ dlnp.setHpr(0, 0, 0)
 render.setLight(dlnp)
 render.setShaderInput('dlight',dlnp)
 
-dayCycle=dlnp.hprInterval(1.0,Point3(0,360,0))
+dayCycle=dlnp.hprInterval(10.0,Point3(0,360,0))
 dayCycle.loop()
 
 # and an ambient light

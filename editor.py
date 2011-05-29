@@ -1,5 +1,5 @@
 from panda3d.core import NodePath,PandaNode, CullFaceAttrib, TextNode, Texture
-from panda3d.core import DirectionalLight, VBase4, AmbientLight, Point3, Texture, Camera, Vec4
+from panda3d.core import DirectionalLight, VBase4, AmbientLight, Point3, Texture, Camera, Vec4,Vec3
 from panda3d.core import FrameBufferProperties, RenderModeAttrib
 from panda3d.core import MouseAndKeyboard 
 from panda3d.core import MouseWatcher 
@@ -182,7 +182,12 @@ class Editor(Window):
         self.accept("mouse1-up",self._setMouseState,[1,False])
         base.taskMgr.add(self.update,"update")
         
+        self.lines=None
+        self.updateLines=True
+        
         self.updateLinkToSourceDisplay()
+        
+        
         
     def updateLinkToSourceDisplay(self):
         d={}
@@ -194,7 +199,9 @@ class Editor(Window):
         
     def getDisplays(self):
         for c in self.graphNode.getChildren():
-            yield c.getPythonTag("nodeDisplay")
+            t=c.getPythonTag("nodeDisplay")
+            if t is not None:
+                yield t
     
     def _setMouseState(self,button,state):
         self.mouseDown=state
@@ -215,7 +222,6 @@ class Editor(Window):
                         if not self.dragging:
                             self.dragSet=set([self.graphNode])
                             self.beginDrag()
-                            print "x"
                         self.mouseDrag(self.lastMouseX,self.lastMouseY,x,y)
                     else:
                         self.dragging=False
@@ -227,6 +233,9 @@ class Editor(Window):
             if self.hadFocus:
                 pass #lostFocus
             self.hadFocus=False
+        
+        if self.updateLines: self.redrawLines()
+        
         return Task.cont
         
     def mouseDrag(self,lastMouseX,lastMouseY,x,y):
@@ -236,9 +245,9 @@ class Editor(Window):
             for d in self.dragSet:
                 if d is self.graphNode:
                     d.setPos(d,deltaX,0,-deltaY)
-                    print "y"
                 else:
                     d.drag(deltaX,deltaY)
+                    self.updateLines=True
     
     def beginDrag(self):
         self.dragging=True
@@ -258,20 +267,36 @@ class Editor(Window):
         self.updateLinkToSourceDisplay()
         
         self.updateNodePaths()
+        self.updateLines=True
         
     def updateNodePaths(self):
         for c in self.graphNode.getChildren():
             self.updateNodePath(c)
         
+    def redrawLines(self):
+        
+        if self.lines: self.lines.remove()
+        
+        self.lines=self.graphNode.attachNewNode("lines")
+        lines=LineNodePath(parent=self.lines,thickness=2)
+        lines.setColor(1,0,0,1)
+        
+        sourceOffset=Vec3(nodeWidth,0,buttonHeight/2)
+        dstOffset=Vec3(0,0,buttonHeight/2)
+        
+        for n in self.getDisplays():
+            for link in n.n.getInLinks():
+                source=self.linkToSourceDisplay[link]
+                lines.drawArrow2d(source.frame.getPos()+sourceOffset,n.frame.getPos()+dstOffset,20,20)
+                #lines.moveTo(source.frame.getPos()+sourceOffset)
+                #lines.drawTo(n.frame.getPos()+dstOffset)
+        lines.create()
+        self.updateLines=False
+        
     def updateNodePath(self,np):
         n=np.getPythonTag("nodeDisplay")
         n.update()
-        for link in n.n.getInLinks():
-            source=self.linkToSourceDisplay[link]
-            line=LineNodePath(parent=np)
-            line.reparentTo(np)
-            line.drawTo(source.frame.getPos(line))
-    
+        
     def previewBuilder(self):
         return self.lib.makeBuilder(self.nodes)
         
