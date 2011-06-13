@@ -65,6 +65,18 @@ class NodeType(object):
                 
         return Node(self,stage,inLinks,outLinks,dataDict)
     
+    def prepNode(self,node):
+        """
+        returns a set of nodes to replace the passed node with for the final ShaderBuilder stage
+        usally this just returns the origional node in a singleton set, but for composite nodes,
+        this is where they expand themselves to all of their contained nodes
+        
+        getActiveNode will only be called on nodes after they have been preped, so perhaps this design is a bit of a hack.
+        Maybe using another class for preped nodes would be better, but that would require another NodeType like class, and add lots of complexity
+        This is used to keep the process very simple, and will prabably only be needed for composite nodes.
+        """
+        return set([node])
+        
     def getActiveNode(self,node,renderState,linkStatus):
         """
         
@@ -592,8 +604,10 @@ class ShaderBuilder(object):
         Takes an iterable of Nodes, and sets this instance up to produce shaders based on them.
         
         """
-        
-        nodes=set(nodes)
+        nodeSet=set()
+        for n in nodes: nodeSet.update(n.getType().prepNode(n))
+            
+        nodes=nodeSet
         
         # a cache of finished shaders. Maps RenderState to Shader
         self.cache={}
