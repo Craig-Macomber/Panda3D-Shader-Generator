@@ -5,7 +5,7 @@ name link1
 type float3
 :: link
 : info
-name link4
+name link0
 type float3
 :: link
 : info
@@ -13,25 +13,25 @@ name link2
 type float3
 :: link
 : info
-name link3
-type float3
-:: link
-: info
-name link0
+name link4
 type float3
 :: link
 : info
 name link5
+type float3
+:: link
+: info
+name link3
 type float3
 :: node
 : info
 type redOut
 stage fshader
 : data
-editor_x 3
-editor_y -118
+editor_x 17
+editor_y -199
 : outlinks
-link4
+link2
 : inlinks
 :: node
 : info
@@ -48,10 +48,10 @@ link0
 type directionalLight
 stage fshader
 : data
-editor_x 2
-editor_y -182
+editor_x 20
+editor_y -290
 : outlinks
-link2
+link4
 link5
 : inlinks
 :: node
@@ -59,24 +59,24 @@ link5
 type float3Sum
 stage fshader
 : data
-editor_x 586
+editor_x 582
 editor_y -235
 : outlinks
 link0
 : inlinks
 link3
-link2
+link4
 :: node
 : info
 type float3Multiply
 stage fshader
 : data
-editor_x 310
-editor_y -177
+editor_x 303
+editor_y -237
 : outlinks
 link3
 : inlinks
-link4
+link2
 link5
 :: node
 : info
@@ -92,8 +92,8 @@ editor_y -40
 type vertexNormal
 stage vshader
 : data
-editor_x 288
-editor_y -90
+editor_x 27
+editor_y -99
 : outlinks
 link1
 : inlinks
@@ -102,8 +102,8 @@ link1
 type exportNormal
 stage vshader
 : data
-editor_x 579
-editor_y -93
+editor_x 302
+editor_y -97
 : outlinks
 : inlinks
 link1

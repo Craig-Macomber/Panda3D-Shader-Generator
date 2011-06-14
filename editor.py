@@ -123,7 +123,10 @@ class NodeDisplay(object):
         self.n=n
         self.editor=editor
         nodeType=n.getType()
-        h=1+max(len(nodeType.inLinks),len(nodeType.outLinks))
+        
+        self.rowCount=max(len(nodeType.inLinks),len(nodeType.outLinks))
+        h=1+self.rowCount
+        
         self.frame=DirectButton(**frameProps(n.getType().getName(),nodeWidth,height=h*buttonHeight))
         self.frame.bind(DGG.B1PRESS,self.startDrag)
         self.frame.reparentTo(editor.graphNode)
@@ -281,15 +284,30 @@ class Editor(Window):
         lines=LineNodePath(parent=self.lines,thickness=2)
         lines.setColor(1,0,0,1)
         
-        sourceOffset=Vec3(nodeWidth,0,buttonHeight/2)
-        dstOffset=Vec3(0,0,buttonHeight/2)
+        sourceOffset=Vec3(nodeWidth,0,-buttonHeight/2)
+        dstOffset=Vec3(0,0,-buttonHeight/2)
         
-        for n in self.getDisplays():
-            for link in n.n.getInLinks():
-                source=self.linkToSourceDisplay[link]
-                lines.drawArrow2d(source.frame.getPos()+sourceOffset,n.frame.getPos()+dstOffset,20,20)
-                #lines.moveTo(source.frame.getPos()+sourceOffset)
-                #lines.drawTo(n.frame.getPos()+dstOffset)
+        for dst in self.getDisplays():
+            dstRow=-1
+            for link in dst.n.getInLinks():
+                dstRow+=1
+                source=self.linkToSourceDisplay.get(link)
+                if source:
+                    sourceRow=0
+                    
+                    for oLink in source.n.outLinks:
+                        if oLink is link:
+                            break
+                        sourceRow+=1
+                    
+                    srcVec=source.frame.getPos()+sourceOffset
+                    srcVec.setZ(srcVec.getZ()+(source.rowCount-sourceRow)*buttonHeight)
+                    
+                    dstVec=dst.frame.getPos()+dstOffset
+                    dstVec.setZ(dstVec.getZ()+(dst.rowCount-dstRow)*buttonHeight)
+                    
+                    lines.drawArrow2d(srcVec,dstVec,20,20)
+                    
         lines.create()
         self.updateLines=False
         
