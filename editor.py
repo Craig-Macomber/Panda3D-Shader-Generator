@@ -16,6 +16,9 @@ from direct.task import Task
 from direct.gui.DirectButton import DirectButton,DirectFrame
 from direct.gui import DirectGuiGlobals as DGG
 
+
+import shaderBuilder
+
 class Window(DirectObject):
     """Represents a window on screen"""
     def __init__(self):
@@ -133,20 +136,29 @@ class NodeDisplay(object):
         self.frame.setPythonTag("nodeDisplay",self)
         
         yindex=2
-        for i in nodeType.inLinks:
-            t=DirectButton(**frameProps(i.type+" "+i.name,nodeWidth/2,height=buttonHeight))
+        inlinks=n.getInLinks()
+        for num,i in enumerate(nodeType.inLinks):
+            t=DirectButton(command=self.inLinkPressed,extraArgs=[num],**frameProps(i.type+" "+i.name,nodeWidth/2,height=buttonHeight))
             t.setPos(0,0,buttonHeight*(h-yindex))
             t.reparentTo(self.frame)
             yindex+=1
         
         yindex=2
-        for i in nodeType.outLinks:
-            t=DirectButton(**frameProps(i.type+" "+i.name,nodeWidth/2,height=buttonHeight))
+        for num,i in enumerate(nodeType.outLinks):
+            t=DirectButton(command=self.outLinkPressed,extraArgs=[num],**frameProps(i.type+" "+i.name,nodeWidth/2,height=buttonHeight))
             t.setPos(nodeWidth/2,0,buttonHeight*(h-yindex))
             t.reparentTo(self.frame)
             yindex+=1
-        
-        
+    
+    def inLinkPressed(self,linkNum):
+        if self.editor.mode=="Disconnect":
+            self.n.inLinks[linkNum]=shaderBuilder.Link(self.n.inLinks[linkNum].dataType)
+            
+            self.editor.redrawLines()
+            
+    def outLinkPressed(self,link): pass
+    
+    
     def update(self):
         x=int(getData(self.n,"x",100))
         y=int(getData(self.n,"y",-100))
@@ -180,6 +192,19 @@ class Editor(Window):
         save.reparentTo(self.toolBarNode)
         save.setPos(0,0,-buttonHeight)
         
+        pos=[2]
+        self.modeBtns={}
+        def modeBtn(name):
+            btn=DirectButton(command=self.modeSet,extraArgs=[name],**frameProps(name,90))
+            btn.reparentTo(self.toolBarNode)
+            btn.setPos(0,0,-(buttonHeight*pos[0]))
+            pos[0]+=1
+            self.modeBtns[name]=btn
+        
+        
+        modeBtn("Disconnect")
+        modeBtn("Connect")
+        self.modeSet("Connect")
         
         self.accept("mouse1",self._setMouseState,[1,True])
         self.accept("mouse1-up",self._setMouseState,[1,False])
@@ -188,10 +213,17 @@ class Editor(Window):
         self.lines=None
         self.updateLines=True
         
-        self.updateLinkToSourceDisplay()
         
         
         
+    
+    def modeSet(self,name):
+        for btn in self.modeBtns.values(): btn['relief']=DGG.RAISED
+        
+        if name: self.modeBtns[name]['relief']=DGG.SUNKEN
+        self.mode=name
+        
+    
     def updateLinkToSourceDisplay(self):
         d={}
         for c in self.getDisplays():
@@ -267,7 +299,6 @@ class Editor(Window):
         for n in self.nodes:
             display=NodeDisplay(n,self)
 
-        self.updateLinkToSourceDisplay()
         
         self.updateNodePaths()
         self.updateLines=True
@@ -277,7 +308,7 @@ class Editor(Window):
             self.updateNodePath(c)
         
     def redrawLines(self):
-        
+        self.updateLinkToSourceDisplay()
         if self.lines: self.lines.remove()
         
         self.lines=self.graphNode.attachNewNode("lines")
@@ -286,12 +317,17 @@ class Editor(Window):
         
         sourceOffset=Vec3(nodeWidth,0,-buttonHeight/2)
         dstOffset=Vec3(0,0,-buttonHeight/2)
+        missingOffset=Vec3(-1,0,0)
         
         for dst in self.getDisplays():
             dstRow=-1
             for link in dst.n.getInLinks():
                 dstRow+=1
                 source=self.linkToSourceDisplay.get(link)
+                
+                dstVec=dst.frame.getPos()+dstOffset
+                dstVec.setZ(dstVec.getZ()+(dst.rowCount-dstRow)*buttonHeight)
+                
                 if source:
                     sourceRow=0
                     
@@ -302,11 +338,14 @@ class Editor(Window):
                     
                     srcVec=source.frame.getPos()+sourceOffset
                     srcVec.setZ(srcVec.getZ()+(source.rowCount-sourceRow)*buttonHeight)
-                    
-                    dstVec=dst.frame.getPos()+dstOffset
-                    dstVec.setZ(dstVec.getZ()+(dst.rowCount-dstRow)*buttonHeight)
-                    
-                    lines.drawArrow2d(srcVec,dstVec,20,20)
+                
+                else:
+                    # no source!
+                    srcVec=dstVec+missingOffset
+                
+                
+                
+                lines.drawArrow2d(srcVec,dstVec,20,20)
                     
         lines.create()
         self.updateLines=False
