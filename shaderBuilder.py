@@ -332,6 +332,8 @@ class Library(object):
         
         path should be a path to a graph text file
         
+        returns nodes from graph
+        
         """
         
         nodeTypes=self.nodes
@@ -452,7 +454,7 @@ class Library(object):
         
     def loadGraph(self,path):
         nodes=self.parseGraph(path)
-        return makeBuilder(nodes)
+        return self.makeBuilder(nodes)
     
 
 
