@@ -229,7 +229,7 @@ def _parseInfoLines(lines,currentFile):
 
 
 class Library(object):
-    def __init__(self,path,nodeTypeClassMap={}):
+    def __init__(self,paths,nodeTypeClassMap={}):
         """
     
         path should be a path to a library folder
@@ -247,12 +247,12 @@ class Library(object):
         
         self.nodeTypeClassMap={None:NodeType}
         self.nodeTypeClassMap.update(nodeTypeClassMap)
-        self.loadPath(path)
+        self.loadPath(paths)
         
-    def loadPath(self,path):
+    def loadPath(self,paths):
         """
         
-        called by init, but can be called again if you wish to reload the same path, or a different one
+        called by init, but can be called again if you wish to reload the same paths, or a different one
         
         """
         
@@ -260,7 +260,7 @@ class Library(object):
         nodes={}
         libs=[]
         
-        for root, dirs, files in os.walk(path):
+        for root, dirs, files in itertools.chain.from_iterable(os.walk(path) for path in paths):
             for name in files:
                 ext=os.path.splitext(name)[1]
                 if ext==".txt":

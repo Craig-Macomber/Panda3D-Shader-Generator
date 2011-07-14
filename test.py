@@ -14,7 +14,7 @@ from shaderBuilder import *
 
 
 
-lib=Library("library")
+lib=Library(["library"])
 
 
 #gg=lib.parseGraph("graph/lit.txt")

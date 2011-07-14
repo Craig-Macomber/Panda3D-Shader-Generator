@@ -3,7 +3,7 @@ loadPrcFileData("","notify-level-gobj debug")
 
 from shaderBuilder import *
 
-lib=Library("library")
+lib=Library(["library"])
 
 builder=lib.loadGraph("graph/lit.txt")
 
