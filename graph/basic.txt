@@ -13,14 +13,14 @@ type float3
 
 :: node
 : info
-name redOut
+type redOut
 stage fshader
 : outlinks
 lighting
 
 :: node
 : info
-name colorOut
+type colorOut
 stage fshader
 : inlinks
 lighting
@@ -31,12 +31,12 @@ lighting
 
 :: node
 : info
-name vertProject
+type vertProject
 stage vshader
 
 :: node
 : info
-name vertexNormal
+type vertexNormal
 stage vshader
 : inlinks
 : outlinks
@@ -45,7 +45,7 @@ vertexNormal
 
 :: node
 : info
-name exportNormal
+type exportNormal
 stage vshader
 : inlinks
 vertexNormal

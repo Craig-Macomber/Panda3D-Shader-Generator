@@ -366,11 +366,11 @@ class Library(object):
                 info=_parseInfoLines(items["info"],path)
                 
                 if "type" not in info:
-                    print "invalid info entry missing type in: "+path
+                    print "invalid info entry missing type in a node in: "+path
                 else:
                     type=info["type"]
                     if "stage" not in info:
-                        print "invalid info entry missing stage in: "+path
+                        print "invalid info entry missing stage in a node in: "+path
                     else:
                         stage=info["stage"]
                         inLinks=[]
