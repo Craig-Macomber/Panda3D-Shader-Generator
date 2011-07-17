@@ -72,6 +72,7 @@ Allow non boolean link status (to propagate compile time information, ex: consta
 """
 
 
+
 class NodeType(object):
     """
     
@@ -143,9 +144,29 @@ class NodeType(object):
         
         override this method to make custom types of nodes that vary based on renderState and linkStatus
         
+        returns an ActiveNode for this context,
+        or returns None if the Node has not active outputs and should not generate any code
+        
+        this method must add an entry in linkStatus for each entry in node.outLinks (even if returning None)
+        and may assume there is an entry in linkStatus for each entry in node.inLinks
+        
+        the interpretation of the values in linkStatus is only done by this method, but it is commonly overwritten.
+        Convention is that True means active, and False values mean inactive. Subclasses may use custon link types that
+        do not translate to passed paramaters (meaning not made as links on the activeNodes), but contain other data.
+        linkStatus can potentially be used to pass any generation time information through the graph
+        such as constants, LODs etc.
+        
+        deafult (implemented here) is that if all inputs are Active (Truthy), genrate node, else no active outputs
+        and return of None.
+        
         """
-        return ActiveNode(node.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(node.inLinks),tuple(node.outLinks),self.code)
-
+        hasAllInputs=all(linkStatus[link] for link in node.inLinks)
+        for link in node.outLinks: linkStatus[link] = hasAllInputs
+        if hasAllInputs:
+            return ActiveNode(node.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(node.inLinks),tuple(node.outLinks),self.code)
+        else:
+            return None
+            
     def __repr__(self):
         return "NodeType"+str(tuple([self.name,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,self.code]))
 
@@ -208,7 +229,7 @@ class ActiveNode(object):
     def getStage(self): return self.stage
     def __repr__(self):
         return "ActiveNode"+str(tuple([self.stage,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
-
+    
         
 class Link(object):
     """
@@ -761,8 +782,7 @@ class ShaderBuilder(object):
         # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
         # nodes are only processed when all nodes above them have been processed.
         
-        activeOutputs=set() # set of activeNodes that might be needed
-        activeOutLinks=set()
+        activeOutputs=set() # set of activeNodes that are needed because they produce output values
         
         linkStatus={}
         linkToSource={}
@@ -771,15 +791,13 @@ class ShaderBuilder(object):
         
         for n in self.sortedNodes:
             a=n.getActiveNode(renderState,linkStatus)
-            sortedActive.append(a)
-            activeOutLinks.update(a.getOutLinks())
-            outLinks=a.getOutLinks()
-            for link in outLinks:
-                linkStatus[link]= link in activeOutLinks
-                linkToSource[link]=a
-            
-            if a.isOutPut():
-                activeOutputs.add(a)
+            if a is not None:
+                sortedActive.append(a)
+                for link in a.getOutLinks():
+                    linkToSource[link]=a
+                
+                if a.isOutPut():
+                    activeOutputs.add(a)
 
         # walk upward to find all needed nodes
 
