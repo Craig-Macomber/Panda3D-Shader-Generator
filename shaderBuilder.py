@@ -52,6 +52,22 @@ Deployment system could concatenate libraries down to 1 file if desired,
 or one could pregenerate shaders and store them with their models in a cache
 if they don't need dynamic generation
 
+TODO :
+generate matching semantics
+
+TODO :
+associate node links with nodeType params (by some exposed public name added to the params?)
+
+TODO :
+allow multiple inputs to one source, which some nodeType might allow (ex: multiply all)
+
+TODO :
+allow editable params on NodeTypes. Saved on graph nodes, editable in editor (slider, text box, color picker etc)
+    NodeType can provide editing widget --> extensible for custom nodeTypes
+
+TODO :
+Allow non boolean link status (to propagate compile time information, ex: constants, LODs etc)
+
 
 """
 
