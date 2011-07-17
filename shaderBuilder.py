@@ -147,8 +147,10 @@ class NodeType(object):
         returns an ActiveNode for this context,
         or returns None if the Node has not active outputs and should not generate any code
         
-        this method must add an entry in linkStatus for each entry in node.outLinks (even if returning None)
-        and may assume there is an entry in linkStatus for each entry in node.inLinks
+        linkStatus for each link defaults to False. This method must add an entry in linkStatus
+        for each entry in node.outLinks that should be non False
+        
+        There is an entry in linkStatus for each entry in node.inLinks (unless left at the default False by its source)
         
         the interpretation of the values in linkStatus is only done by this method, but it is commonly overwritten.
         Convention is that True means active, and False values mean inactive. Subclasses may use custon link types that
@@ -157,12 +159,11 @@ class NodeType(object):
         such as constants, LODs etc.
         
         deafult (implemented here) is that if all inputs are Active (Truthy), genrate node, else no active outputs
-        and return of None.
+        and return None.
         
         """
-        hasAllInputs=all(linkStatus[link] for link in node.inLinks)
-        for link in node.outLinks: linkStatus[link] = hasAllInputs
-        if hasAllInputs:
+        if all(linkStatus[link] for link in node.inLinks):
+            for link in node.outLinks: linkStatus[link] = True
             return ActiveNode(node.stage,tuple(self.shaderInputs),tuple(self.shaderOutputs),tuple(node.inLinks),tuple(node.outLinks),self.code)
         else:
             return None
@@ -784,7 +785,8 @@ class ShaderBuilder(object):
         
         activeOutputs=set() # set of activeNodes that are needed because they produce output values
         
-        linkStatus={}
+        # linksStatus defaults to false for all links
+        linkStatus=collections.defaultdict(lambda:False)
         linkToSource={}
         
         sortedActive=[]
