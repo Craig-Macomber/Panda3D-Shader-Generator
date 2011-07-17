@@ -6,6 +6,7 @@ Goals:
 - Allow easy realtime configuration and tuning of effects (accessible to artists and coders) (Started, see editor)
 - Generate custom shaders based on render state and other settings on a per NodePath basis from a single configuration (Done via use of meta-language design)
 - Allow easy use of multiple separate configurations applied to different NodePaths (ex: one for deferred shaded lights, one for models, one for particles. Done.)
+- Produce an extensive collection of useful NodeTypes and example Graphs, sample applications etc. (Most of the remaining work is here)
 
 It is important that adding, sharing and using libraries of effects is easy. To facilitate this, they are packed into libraries which can simply be placed in a libraries folder (even recursively)
 There is however currently no name spacing. For now, manually prefix things if you with to avoid any potential conflicts.
