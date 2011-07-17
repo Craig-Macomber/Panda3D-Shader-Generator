@@ -8,7 +8,52 @@ from panda3d.core import Shader
 
 join=os.path.join
 
+"""
 
+A system for generating shader generators based on the generator specifications (the graph files).
+
+IMPORTANT:
+The graph files (produced with the editor or by other means) do NOT discribe specific shaders.
+They describe a shader generator (ShaderBuilder), which takes input (render states) and outputs shaders.
+To enable this, the nodes is the shader graph files (defined by the libraries) are not all simply shader functions.
+They are all code generators, which may or may not produce the same code in all cases.
+The graph files specifify how to instance and connect the code generator nodes together.
+Thus, this shaderBuilder system is an implementation of a Shader Meta-Language. It is NOT a Shader Language.
+
+Specifically, a graph file and library files, together with any NodeType subclasses,
+are used as souce code (in the Shader Meta-Language) to
+essencially compile a function (ShaderBuilder instance) that accepts renderStates and retuns CG Shader code.
+
+
+Usage:
+- Load up a Library instance from a list of folders on disc
+- Use Library.loadGraph to load up a shader generator specification graph file (perhaps made with the editor)
+    that uses the NodeTypes from the Library. Returns a ShaderBuilder
+- Use one or more ShaderBuilders to generate (from one or more Libraryies and graphs) to generate shaders for
+    your scene
+
+Also, you can use an editor to do realtime editing on a graph with previewing, see test.py or editor.py
+
+Developing libraries:
+Shader code defines NodeTypes in the library .txt files. New NodeTypes can be added this way.
+The NodeType class can be considered a metaClass of sorts for NodeTypes defined in the libraries.
+Subclass NodeType and provide the new Class to the Library to allow the class info field in
+the library's nodes to refer to it. This allows new render state dependant code generation.
+
+
+TODO :
+
+Loaders really need to assoiate file name and line numbers with all the loaded items
+so error reporting can be far more useful!
+
+TODO :
+
+Deployment system could concatenate libraries down to 1 file if desired,
+or one could pregenerate shaders and store them with their models in a cache
+if they don't need dynamic generation
+
+
+"""
 
 
 class NodeType(object):
@@ -50,7 +95,7 @@ class NodeType(object):
             print "Error: number of inputs does not match node type. Inputs: "+str(inLinks)+" expected: "+str(self.inLinks)
             return None
         if len(outLinks)!=len(self.outLinks):
-            print "Error: number of outLinks does not match node type. Outputs: "+str(outLinks)+" expected: "+str(self.outLinks)
+            print "Error: making node of type "+self.name+", number of outLinks does not match node type. Outputs: "+str(outLinks)+" expected: "+str(self.outLinks)
             return None
         for x in xrange(len(inLinks)):
             t1=self.inLinks[x].getType()
