@@ -28,7 +28,7 @@ class RenderStateFactory(object):
     def _getTagDict(self,pandaNode):
         tags={}
         for t in self.tags:
-            if pandaNode.hasNetTag(): tags[t]=pandaNode.getNetTag(t)
+            if pandaNode.hasNetTag(t): tags[t]=pandaNode.getNetTag(t)
         return tags
     
     def _getRenderState(self,tagDict,pandaRenderState):

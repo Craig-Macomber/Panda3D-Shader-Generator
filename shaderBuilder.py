@@ -205,6 +205,13 @@ class Library(object):
                                             for s in items["shaderoutputs"]:
                                                 shaderOutputs.append(param.shaderParamFromDefCode(s))
                                         
+                                        if "output" in info:
+                                            o=info["output"]
+                                            assert o in ["True","False"]
+                                            isOutPut=o=="True"
+                                        else:
+                                            isOutPut=len(shaderOutputs)>0
+                                        
                                         inLinks=[]
                                         if "inlinks" in items:
                                             for s in items["inlinks"]:
@@ -219,7 +226,7 @@ class Library(object):
                                         if "code" in items:
                                             code="\n".join(items["code"])
                                         
-                                        node=nodes.metaCodeNode(code,shaderInputs,shaderOutputs,inLinks,outLinks)
+                                        node=nodes.metaCodeNode(code,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut=isOutPut)
                                         if name in self.nodeTypeClassMap:
                                             print "Warning: overwriting node "+repr(self.nodeTypeClassMap[name])+" with "+repr(node)+" from "+currentFile
                                         self.nodeTypeClassMap[name]=node

@@ -6,6 +6,9 @@ import param
 This module contains the basic NodeType implementation, including the classes it instances
 
 """
+
+boolLinkType="MetaBool"
+
 class Link(object):
     """
     
@@ -42,20 +45,21 @@ class ActiveNode(object):
         else:
             o = cls.cache[v] = object.__new__(cls)
             return o
-    def __init__(self,shaderInputs,shaderOutputs,inLinks,outLinks,code):
+    def __init__(self,shaderInputs,shaderOutputs,inLinks,outLinks,code,isOutPut):
         self.shaderInputs=shaderInputs
         self.shaderOutputs=shaderOutputs
         self.inLinks=inLinks
         self.outLinks=outLinks
         self.code=code
+        self.outPut=isOutPut
     def getShaderInputs(self): return self.shaderInputs
     def getShaderOutputs(self): return self.shaderOutputs
     def getInLinks(self): return self.inLinks
     def getOutLinks(self): return self.outLinks
-    def isOutPut(self): return len(self.getShaderOutputs())>0
+    def isOutPut(self): return self.outPut
     def getCode(self): return self.code
     def __repr__(self):
-        return "ActiveNode"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>"]))
+        return "ActiveNode"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>",self.outPut]))
  
 
 
@@ -151,9 +155,9 @@ class CodeNode(AllActiveNode):
     """
     base class for nodes that fixed contain arbitrary code
     """
-    def __init__(self,source,shaderInputs,shaderOutputs,inLinks,outLinks):
+    def __init__(self,source,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut):
         self.source=source
-        activeNode=ActiveNode(tuple(shaderInputs),tuple(shaderOutputs),tuple(inLinks),tuple(outLinks),self.source)
+        activeNode=ActiveNode(tuple(shaderInputs),tuple(shaderOutputs),tuple(inLinks),tuple(outLinks),self.source,isOutPut)
         AllActiveNode.__init__(self,activeNode,*inLinks)
     def getLink(self,name):
         for link in self.activeNode.getOutLinks():
@@ -167,7 +171,7 @@ class CodeNode(AllActiveNode):
         else:
             raise LinkError("This node has no default link because it has no outputs")
             
-def metaCodeNode(source,shaderInputs,shaderOutputs,inLinks,outLinks):
+def metaCodeNode(source,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut):
     """
     makes a usable CodeNode for the specified source and I/O
     """
@@ -184,7 +188,7 @@ def metaCodeNode(source,shaderInputs,shaderOutputs,inLinks,outLinks):
                 if t0!=t1:
                     raise LinkError("Error: mismatched type on inLinks. Got: "+t1+" expected: "+t0)
             newOutLinks=(Link(link.getType(),link.name) for link in outLinks)
-            CodeNode.__init__(self,fullSource,shaderInputs,shaderOutputs,inLinks_,newOutLinks)
+            CodeNode.__init__(self,fullSource,shaderInputs,shaderOutputs,inLinks_,newOutLinks,isOutPut)
             
     return CustomCodeNode
 
@@ -218,7 +222,7 @@ class ConditionalInput(SingleOutputMixin,ScriptNode):
         
         outLink=Link(input.getType())
         SingleOutputMixin.__init__(self,outLink)
-        self.activeNode=ActiveNode((input,),(),(),(outLink,),source)
+        self.activeNode=ActiveNode((input,),(),(),(outLink,),source,False)
 
         
     def getActiveNode(self,renderState,linkStatus):
@@ -254,5 +258,46 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
         for input in self.links:
             if linkStatus[input]:
                 linkStatus[self.outLink] = True
-                return ActiveNode((),(),(input,),(self.outLink,),self.source)
+                return ActiveNode((),(),(input,),(self.outLink,),self.source,False)
         return None
+
+
+@reg
+class RequireTag(SingleOutputMixin,ScriptNode):
+    """
+    this node produces no activeNode, but marks it's outlink as active if the tag is present
+    """
+    def __init__(self,tagName):
+        ScriptNode.__init__(self)
+        assertString(tagName)
+        self.tagName=tagName
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNode(self,renderState,linkStatus):
+        if renderState.hasTag(self.tagName):
+            linkStatus[self.outLink] = True
+        return None
+            
+    def setupRenderStateFactory(self,renderStateFactory):
+        renderStateFactory.tags.add(self.tagName)
+
+@reg
+class ConditionalPassThrough(SingleOutputMixin,ScriptNode):
+    def __init__(self,conditionLink,dataLink):
+        ScriptNode.__init__(self)
+        assertLink(conditionLink)
+        self.conditionLink=conditionLink
+        self.dataLink=dataLink
+        type=dataLink.getType()
+        outLink=Link(type)
+        source=makePassThroughCode(type)
+        self.activeNode=ActiveNode((),(),(dataLink,),(outLink,),source,False)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNode(self,renderState,linkStatus):
+        if linkStatus[self.conditionLink]:
+            linkStatus[self.outLink] = True
+            return self.activeNode
+        else:
+            return None
