@@ -7,6 +7,23 @@ This module contains the basic NodeType implementation, including the classes it
 
 """
 
+def makeFullCode(code,shaderInputs,shaderOutputs,inLinks,outLinks):
+    """
+    
+    the code needed to construct Nodes includes the (paramList){code} wrapping stuff, so this addes it
+    and saves it to self.code
+    
+    """
+    
+    fparamChain=itertools.chain(
+         ("in "+s.getType()+" "+s.getName() for s in shaderInputs),
+         ("out "+s.getType()+" "+s.getName() for s in shaderOutputs),
+         ("in "+s.getType()+" "+s.getName() for s in inLinks),
+         ("out "+s.getType()+" "+s.getName() for s in outLinks),
+         )
+
+    return "("+",".join(fparamChain)+"){\n"+code+"\n}"
+    
 class NodeType(object):
     """
     
@@ -21,7 +38,13 @@ class NodeType(object):
         self.outLinks=outLinks
         
         self.makeFullCode(code)
-        
+    
+    def scriptMakeNode(self,*args,**kargs):
+        """
+        called by generator script files
+        """
+        print args
+    
     def makeFullCode(self,code):
         """
         
@@ -29,15 +52,8 @@ class NodeType(object):
         and saves it to self.code
         
         """
-        
-        fparamChain=itertools.chain(
-             ("in "+s.getType()+" "+s.getName() for s in self.shaderInputs),
-             ("out "+s.getType()+" "+s.getName() for s in self.shaderOutputs),
-             ("in "+s.getType()+" "+s.getName() for s in self.inLinks),
-             ("out "+s.getType()+" "+s.getName() for s in self.outLinks),
-             )
 
-        self.code="("+",".join(fparamChain)+"){\n"+code+"\n}"
+        self.code=makeFullCode(code,self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks)
     
     def getName(self): return self.name
     

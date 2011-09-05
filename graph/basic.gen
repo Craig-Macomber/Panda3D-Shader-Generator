@@ -1,0 +1,10 @@
+def fshader():
+    red=redOut()
+    colorOut(red)
+    AssertActiveNode(red)
+
+def vshader():
+    vProj=vertProject()
+    vNorm=vertexNormal()
+    exportNormal(vNorm)
+    AssertActiveNode(vNorm)

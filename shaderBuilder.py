@@ -410,6 +410,8 @@ class StageBuilder(object):
     
     Used by ShaderBuilder to build the different stages in the shaders
     
+    All nodes used in here are ActiveNodes
+    
     """
     def __init__(self):
         self.links=AutoNamer("__x")

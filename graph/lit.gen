@@ -1,0 +1,13 @@
+def fshader():
+    diffuseColor=redOut()
+    dlight=directionalLight()
+    diffuse=float3Multiply(diffuseColor,dlight.diffuseLight)
+    lighting=float3Sum(diffuse,dlight.specularLight)
+    colorOut(lighting)
+
+def vshader():
+    vProj=vertProject()
+    vNorm=vertexNormal()
+    exportNormal(vNorm)
+    AssertActiveNode(vNorm)
+    
