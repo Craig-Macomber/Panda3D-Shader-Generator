@@ -10,24 +10,14 @@ import math
 import direct.directbase.DirectStart
 print PandaSystem.getVersionString()
 
-from shaderBuilder import *
+from shaderBuilder import Library,ShaderBuilder
 
 
 
 lib=Library(["library"])
+builder=lib.loadScript("graph/lit.gen")
 
-
-#gg=lib.parseGraph("graph/lit.txt")
-#lib.saveGraph(gg,"ShadersOut/debug.txt")
-
-#g=lib.loadGraph("ShadersOut/debug.txt")
-#s = g.getShader(None,"ShadersOut/debug.sha")
-
-import editor
-ed=editor.Editor(lib,"graph/lit.txt")
-ed.save("ShadersOut/debug.txt")
-builder=ed.previewBuilder()
-s = builder.getShader(None,"ShadersOut/debug.sha")
+s = builder.getShader(None,"ShadersOut/debug")
 
 
 """

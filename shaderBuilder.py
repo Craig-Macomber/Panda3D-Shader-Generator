@@ -1,43 +1,37 @@
-import collections
 import itertools
+import collections
 import os
-import os.path
+import renderState
+
+import param
+import nodes
 
 from panda3d.core import Shader
-
-import nodeTypes
-import renderState
-import param
-
-join=os.path.join
-
-debugText=True
 
 """
 
 A system for generating shader generators based on the generator specifications (the graph files).
 
 IMPORTANT:
-The graph files (produced with the editor or by other means) do NOT discribe specific shaders.
+The script files do NOT discribe specific shaders.
 They describe a shader generator (ShaderBuilder), which takes input (render states) and outputs shaders.
 To enable this, the nodes is the shader graph files (defined by the libraries) are not all simply shader functions.
 They are all code generators, which may or may not produce the same code in all cases.
 The graph files specifify how to instance and connect the code generator nodes together.
 Thus, this shaderBuilder system is an implementation of a Shader Meta-Language. It is NOT a Shader Language.
 
-Specifically, a graph file and library files, together with any NodeType subclasses,
+Specifically, a script file and library files, together with any NodeType subclasses,
 are used as souce code (in the Shader Meta-Language) to
 essencially compile a function (ShaderBuilder instance) that accepts renderStates and retuns CG Shader code.
 
 
 Usage:
 - Load up a Library instance from a list of folders on disc
-- Use Library.loadGraph to load up a shader generator specification graph file (perhaps made with the editor)
+- Use Library.loadScript to load up a shader generator specification graph file (perhaps made with the editor)
     that uses the NodeTypes from the Library. Returns a ShaderBuilder
-- Use one or more ShaderBuilders to generate (from one or more Libraryies and graphs) to generate shaders for
+- Use one or more ShaderBuilders to generate (from one or more Libraryies and scripts) to generate shaders for
     your scene
 
-Also, you can use an editor to do realtime editing on a graph with previewing, see test.py or editor.py
 
 Developing libraries:
 Shader code defines NodeTypes in the library .txt files. New NodeTypes can be added this way.
@@ -60,36 +54,16 @@ if they don't need dynamic generation
 TODO :
 generate matching semantics
 
-TODO :
-associate node links with nodeType params (by some exposed public name added to the params?)
-
-TODO :
-allow multiple inputs to one source, which some nodeType might allow (ex: multiply all)
-
-TODO :
-allow editable params on NodeTypes. Saved on graph nodes, editable in editor (slider, text box, color picker etc)
-    NodeType can provide editing widget --> extensible for custom nodeTypes
+TODO:
+Process stages in order, provide outputs of previous stages an inputs (use link status?)
 
 """
-   
-        
-class Link(object):
-    """
-    
-    An output from a shader Node, and possibly multiple inputs to multiple shader nodes.
-    
-    As it can be multiple inputs, links are sets of edges in the graph from one node to multiple others.
-    
-    """
-    def __init__(self,dataType,name="Unnamed"):
-        self.dataType=dataType
-        self.name=name
-    def getType(self): return self.dataType
-    def __repr__(self):
-        return "Link"+str(tuple([self.dataType,self.name]))
-        
-        
-        
+
+
+join=os.path.join
+
+
+debugText=True
         
 
 def _parseFile(path):
@@ -152,6 +126,25 @@ def _parseInfoLines(lines,currentFile):
     
 
 
+
+
+class NodeWrapper(object):
+    """
+    A wrapper around a node,
+    intended to be returned as a node in script files
+    """
+    def __init__(self,scriptNode):
+        self._scriptNode=scriptNode
+    def __getattr__(self,name):
+        return self._scriptNode.getLink(name)
+        
+
+def preprocessParam(param):
+    if isinstance(param,NodeWrapper):
+        return preprocessParam(param._scriptNode.getDefaultLink())
+    else:
+        return param
+
 class Library(object):
     def __init__(self,paths,nodeTypeClassMap={}):
         """
@@ -169,10 +162,10 @@ class Library(object):
         """
         
         
-        self.nodeTypeClassMap=dict(nodeTypes.defaultNodeTypeClassMap)
+        self.nodeTypeClassMap=dict(nodes.defaultNodeClasses)
         self.nodeTypeClassMap.update(nodeTypeClassMap)
         self.loadPath(paths)
-        
+    
     def loadPath(self,paths):
         """
         
@@ -181,7 +174,6 @@ class Library(object):
         """
         
         
-        nodes={}
         libs=[]
         
         for root, dirs, files in itertools.chain.from_iterable(os.walk(path) for path in paths):
@@ -227,17 +219,10 @@ class Library(object):
                                         if "code" in items:
                                             code="\n".join(items["code"])
                                         
-                                        class_=info.get("class")
-                                        
-                                        nclass=self.nodeTypeClassMap.get(class_)
-                                        if nclass is None:
-                                            nclass=self.nodeTypeClassMap[None]
-                                            print "Warning: unrecognized class: "+class_+" in file: "+currentFile
-                                        
-                                        node=nclass(name,shaderInputs,shaderOutputs,inLinks,outLinks,code)
-                                        if name in nodes:
-                                            print "Warning: overwriting node "+repr(nodes[name])+" with "+repr(node)+" from "+currentFile
-                                        nodes[name]=node
+                                        node=nodes.metaCodeNode(code,shaderInputs,shaderOutputs,inLinks,outLinks)
+                                        if name in self.nodeTypeClassMap:
+                                            print "Warning: overwriting node "+repr(self.nodeTypeClassMap[name])+" with "+repr(node)+" from "+currentFile
+                                        self.nodeTypeClassMap[name]=node
                                 
                         elif key=="lib":
                             libs.append(xitems)
@@ -246,148 +231,187 @@ class Library(object):
                             
         libSource="\n".join(itertools.chain.from_iterable(lib["code"] for lib in itertools.chain.from_iterable(libs) if "code" in lib))
         
-        self.nodes=nodes
         self.libSource=libSource
     
 
-
-    def parseGraph(self,path):
-        """
-        
-        path should be a path to a graph text file
-        
-        returns nodes from graph
-        
-        """
-        
-        nodeTypes=self.nodes
-        
-        links={}
-        nodes=[]
-        d=_parseFile(path)
-        for items in d["link"]:
-            if "info" not in items:
-                print "link missing info section in: "+path
-            else:
-                info=_parseInfoLines(items["info"],path)
-                
-                if "name" not in info:
-                    print "invalid info entry missing name in: "+path
-                else:
-                    name=info["name"]
-                    if "type" not in info:
-                        print "invalid info entry missing type in link: "+name+" in file: "+path
-                    else:
-                        dataType=info["type"]
-                        links[name]=Link(dataType,name)
-                        
-        for items in d["node"]:
-            if "info" not in items:
-                print "node missing info section in: "+path
-            else:
-                
-                
-                info=_parseInfoLines(items["info"],path)
-                
-                if "type" not in info:
-                    print "invalid info entry missing type in a node in: "+path
-                else:
-                    type=info["type"]
-                    if "stage" not in info:
-                        print "invalid info entry missing stage in a node in: "+path
-                    else:
-                        stage=info["stage"]
-                        inLinks=[]
-                        outLinks=[]
-                        if "inlinks" in items:
-                            for s in items["inlinks"]:
-                                if s in links:
-                                    inLinks.append(links[s])
-                                else:
-                                    print "missing link of name: "+s+" in file: "+path
-                                    
-                        if "outlinks" in items:
-                            for s in items["outlinks"]:
-                                if s in links:
-                                    outLinks.append(links[s])
-                                else:
-                                    print "missing link of name: "+s+" in file: "+path
-                        
-                        dataDict={}
-                        if "data" in items:
-                            dataDict=_parseInfoLines(items["data"],path)
-                        
-                        if type in nodeTypes:
-                            nodes.append(nodeTypes[type].getNode(stage,inLinks,outLinks,dataDict))
-                        else:
-                            print "using non existant nodeTypes of name: "+type+" in file: "+path
-            
-            extraKeys=set(d.keys())-set(["link","node"])
-            if extraKeys:
-                print "Warning: throwing away invalid majorSections with unrecognized names: "+str(extraKeys)+" in file: "+currentFile
-        
-        return nodes
     
-    def saveGraph(self,nodes,path):
-        
-        # get all links
-        links=set()
-        for n in nodes:
-            links.update(n.getOutLinks())
-            links.update(n.getInLinks())
-        
-        # force all links to have unique names
-        linkNamer=AutoNamer("link")
-        for n in links:
-            linkNamer.addItem(n)
-                
-        
-        
-        
-        f = open(path, 'w')
-        f.write("# Graph file for shader generator #\n")
-        
-        linkDict=linkNamer.getItems()
-        for link,name in linkDict.iteritems():
-            f.write(":: link\n")
-            f.write(": info\n")
-            f.write("name "+name+"\n")
-            f.write("type "+link.getType()+"\n")
+    def loadScript(self,path):
+        return ShaderBuilder(self.parseScript(path),self.libSource)
+    
+    def parseScript(self,path):
+        # setup some globals with the names of the Node classes in self.nodeTypeClassMap
+        globals={}
+        for name,nodeType in self.nodeTypeClassMap.iteritems():
+            
+            # this closure is the auctual item put into the globals for the script
+            # it poses as a Node class, but produces NodeWrappers instead of Nodes,
+            # and also runs preprocessParam on all passed arguments
+            def wrapperMaker(name,nodeType):
+                def scriptNodeWrapper(*args,**kargs):
+                    pargs=[preprocessParam(param) for param in args]
+                    for name,param in kargs.iteritems():
+                        kargs[name]=preprocessParam(param)
+                    node=nodeType(*pargs,**kargs)
+                    nodes.append(node)
+                    return NodeWrapper(node)
+                return scriptNodeWrapper
+            globals[name]=wrapperMaker(name,nodeType)
         
         
+        # run the script with the newly made globals
+        locals={}
+        execfile(path,globals,locals)
+        stages={}
+        for stage,func in locals.iteritems():
+            nodes=[]
+            stages[stage]=nodes
+            func()
+        return stages
         
-        for n in nodes:
-            f.write(":: node\n")
-            f.write(": info\n")
-            type=n.getType().getName()
-            f.write("type "+type+"\n")
-            f.write("stage "+n.getStage()+"\n")
-            d=n.getDataDict()
-            if d:
-                f.write(": data\n")
-                for key,value in d.iteritems():
-                    f.write(key+" "+value+"\n")
-            f.write(": outlinks\n")
-            for link in n.getOutLinks():
-                f.write(linkDict[link]+"\n")
-            f.write(": inlinks\n")
+        
+class ShaderBuilder(object):
+    """
+    
+    A factory for shaders based off a set of Nodes. Make one instance for each distinct set of stages.
+    
+    """
+    def __init__(self,stages,libSource=""):
+        """
+        
+        Takes an dict of lists of Nodes, and sets this instance up to produce shaders based on them.
+        
+        """
+        self.stages=stages
+        
+        # a cache of finished shaders. Maps RenderState to Shader
+        self.cache={}
+        
+        # a cache of finished shaders. Maps set of stage source strings to Shader
+        self.casheByStages={}
+        
+        self.header="//Cg\n//AUTO-GENERATED-SHADER//\n\n"+libSource+"\n\n"
+        self.footer="\n\n//END-AUTO-GENERATED-SHADER//\n"
+        
+        
+    
+    def setupRenderStateFactory(self,factory=None):
+        if factory is None: factory=renderState.RenderStateFactory()
+        for n in itertools.chain.from_iterable(self.stages.values()):
+            n.setupRenderStateFactory(factory)
+        return factory
+        
+        
+    def getShader(self,renderState,debugFile=None,noChache=False):
+        """
+        
+        returns a shader appropriate for the passed RenderState
+        
+        will generate or fetch from cache as needed
+        
+        noChache forces the generation of the shader (but it will still get cached).
+        Useful for use with debugFile if you need to see the source, but it may be cached
+        
+        caching system isn't verg good in the case where the render state is different, but the resulting shader is the same.
+        It will find the shader in the cache, but it will take a while.
+        
+        """
+        
+        shader=self.cache.get(renderState)
+        if shader and not noChache:
+            #if debugFile: print "Shader is cached (renderState cache). Skipping generating shader to: "+debugFile
+            return shader
+
+        stages=set()
+        for name,nodes in self.stages.iteritems():
+            stages.add(makeStage(name,nodes,renderState))
+        
+        stages=frozenset(stages)
+        shader=self.casheByStages.get(stages)
+        if shader and not noChache:
+            self.cache[renderState]=shader
+            #if debugFile: print "Shader is cached (renderState cache). Skipping generating shader to: "+debugFile
+            return shader
+
+        
+        # TODO : Auto generate/match unspecified semantics here
+        
+        stageCode="\n\n".join(stages)
+        
+        
+        source = self.header+"\n\n"+stageCode+self.footer
+        
+        
+        
+        
+        if debugFile:
+            debugFile+=str(len(self.casheByStages))+".sha"
+            print 'Making Shader: '+debugFile
+            
+        
+        if debugFile:
+            fOut=open(debugFile, 'w')
+            fOut.write(source)
+            fOut.close()
+        
+        shader=Shader.make(source)
+        self.cache[renderState]=shader
+        self.casheByStages[stages]=shader
+        return shader
+
+
+
+def makeStage(name,nodes,renderState):
+    # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
+    # nodes are only processed when all nodes above them have been processed.
+    
+    activeOutputs=set() # set of activeNodes that are needed because they produce output values
+    
+    # linksStatus defaults to false for all links
+    linkStatus=collections.defaultdict(lambda:False)
+    linkToSource={}
+    
+    sortedActive=[]
+    
+    for n in nodes:
+        a=n.getActiveNode(renderState,linkStatus)
+        if a is not None:
+            sortedActive.append(a)
+            for link in a.getOutLinks():
+                linkToSource[link]=a
+            
+            if a.isOutPut():
+                activeOutputs.add(a)
+
+    # walk upward to find all needed nodes
+
+    neededSet=set(activeOutputs)
+    neededNodes=[]
+    
+    for n in reversed(sortedActive):
+        if n in neededSet:
+            neededNodes.append(n)
             for link in n.getInLinks():
-                f.write(linkDict[link]+"\n")
-            
-        f.close()
-    
-    def makeBuilder(self,nodes):
-        return ShaderBuilder(nodes,self.libSource)
+                neededSet.add(linkToSource[link])
+
+
+    return makeStageFromActiveNodes(name,tuple(neededNodes))
         
-    def loadGraph(self,path):
-        nodes=self.parseGraph(path)
-        return self.makeBuilder(nodes)
     
 
-
-
-    
-
+stageCache={}
+def makeStageFromActiveNodes(name,activeNodes):
+    key=(name,activeNodes)
+    s=stageCache.get(key)
+    if s is None:
+        b=StageBuilder()
+        namer=AutoNamer("__"+name+"_")
+        for node in activeNodes: b.addNode(node,namer)
+        s=b.generateSource(name)
+        
+        s="\n\n".join(namer.getItems())+"\n\n"+s
+        
+        stageCache[key]=s
+    return s
 
 class AutoNamer(object):
     """
@@ -469,195 +493,3 @@ class StageBuilder(object):
         linkDeclarations='\n'.join(link.getType()+" "+name+";//"+link.name for link,name in self.links.getItems().iteritems())
         source='\n'.join(reversed(self.sourceLines))
         return header+linkDeclarations+'\n\n'+source+'\n'+footer
-
-    
-
-class ShaderBuilder(object):
-    """
-    
-    A factory for shaders based off a set of Nodes. Make one instance for each distinct set of Nodes.
-    
-    """
-    def __init__(self,nodes,libSource=""):
-        """
-        
-        Takes an iterable of Nodes, and sets this instance up to produce shaders based on them.
-        
-        """
-        nodeSet=set()
-        for n in nodes: nodeSet.update(n.getType().prepNode(n))
-            
-        nodes=nodeSet
-        
-        # a cache of finished shaders. Maps RenderState to Shader
-        self.cache={}
-        
-        # a cache of finished shaders. Maps set of needed ActiveNodes to Shader
-        self.casheByNodes={}
-        
-        self.header="//Cg\n//AUTO-GENERATED-SHADER//\n\n"+libSource+"\n\n"
-        self.footer="\n\n//END-AUTO-GENERATED-SHADER//\n"
-        
-        # needed for generateing all shaders, so precomputed and stored.
-        self.topNodes=set()
-    
-        self.linkToDst=collections.defaultdict(set)
-        links=set() # just used for checking if links have multiple sources (aka invalid)
-        
-        
-        
-        for n in nodes:
-            inLinks=n.getInLinks()
-            for l in inLinks:
-                self.linkToDst[l].add(n)
-                
-            outLinks=n.getOutLinks()
-            for l in outLinks:
-                if l in links: print "Error: Multisourced link"
-                links.add(l)
-                
-            if not inLinks:
-                self.topNodes.add(n)
-                
-        
-        # make a pass to verify that all links have a source
-        for s in self.linkToDst.values():
-            if not s-links:
-                print "Error: unsourced link"
-        
-        # detect cycles
-        
-        toProcess=set(self.topNodes)
-        processed=set()
-        processedLinks=set()
-        self.sortedNodes=[]
-        
-        # process from top down (topological sort), cycles will get skipped, which we use to detect them
-        while toProcess:
-            n=toProcess.pop()
-            processed.add(n)
-            self.sortedNodes.append(n)
-            
-            outLinks=n.getOutLinks()
-            processedLinks.update(outLinks)
-
-            for link in outLinks:
-                for dst in self.linkToDst[link]:
-                    if dst.getStage()!=n.getStage():
-                        print "Error: mismatched stages in dependant nodes: "+repr(n)+repr(dst)
-                    inLinks=set(dst.getInLinks())
-                    if not inLinks-processedLinks: # if processed all incomming links
-                        toProcess.add(dst)
-        
-        cycleNodes=nodes-processed
-        if cycleNodes:
-            print "Error: cycles containing these nodes: "+str(cycleNodes)
-        
-    
-    def setupRenderStateFactory(self,factory=None):
-        if factory is None: factory=renderState.RenderStateFactory()
-        for n in self.sortedNodes:
-            n.setupRenderStateFactory(factory)
-        return factory
-        
-        
-    def getShader(self,renderState,debugFile=None,noChache=False):
-        """
-        
-        returns a shader appropriate for the passed RenderState
-        
-        will generate or fetch from cache as needed
-        
-        noChache forces the generation of the shader (but it will still get cached).
-        Useful for use with debugFile if you need to see the source, but it may be cached
-        
-        caching system isn't verg good in the case where the render state is different, but the resulting shader is the same.
-        It will find the shader in the cache, but it will take a while.
-        
-        """
-        
-        shader=self.cache.get(renderState)
-        if shader and not noChache:
-            #if debugFile: print "Shader is cached (renderState cache). Skipping generating shader to: "+debugFile
-            return shader
-
-        # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
-        # nodes are only processed when all nodes above them have been processed.
-        
-        activeOutputs=set() # set of activeNodes that are needed because they produce output values
-        
-        # linksStatus defaults to false for all links
-        linkStatus=collections.defaultdict(lambda:False)
-        linkToSource={}
-        
-        sortedActive=[]
-        
-        for n in self.sortedNodes:
-            a=n.getActiveNode(renderState,linkStatus)
-            if a is not None:
-                sortedActive.append(a)
-                for link in a.getOutLinks():
-                    linkToSource[link]=a
-                
-                if a.isOutPut():
-                    activeOutputs.add(a)
-
-        # walk upward to find all needed nodes
-
-        neededSet=set(activeOutputs)
-        neededNodes=[]
-        
-        for n in reversed(sortedActive):
-            if n in neededSet:
-                neededNodes.append(n)
-                for link in n.getInLinks():
-                    neededSet.add(linkToSource[link])
-
-
-        # check casheByNodes.
-        # Many different RenderStates may produce the same ActiveNode graph, so this second cache is useful.
-        neededSet=frozenset(neededNodes)
-        shader=self.casheByNodes.get(neededSet)
-        if shader and not noChache:
-            self.cache[renderState]=shader
-            if debugFile: print "Shader is cached (neededSet cache). Skipping generating shader to: "+debugFile
-            return shader
-          
-        # no shader cached, so produce the source and shader
-        
-        stages=collections.defaultdict(StageBuilder)
-        functions=AutoNamer("__f")
-        
-        for n in neededNodes:
-            # process n
-            s=stages[n.getStage()]
-            s.addNode(n,functions)
-        
-        
-        # TODO : Auto generate/match unspecified semantics here
-        
-        
-        funcs="\n\n".join(functions.getItems())
-        stageCode="\n\n".join(stage.generateSource(name) for name,stage in stages.iteritems())
-        
-        
-        source = self.header+funcs+"\n\n"+stageCode+self.footer
-        
-        
-        
-        
-        if debugFile:
-            debugFile+=str(len(self.casheByNodes))+".sha"
-            print 'Making Shader: '+debugFile
-            
-        
-        if debugFile:
-            fOut=open(debugFile, 'w')
-            fOut.write(source)
-            fOut.close()
-        
-        shader=Shader.make(source)
-        self.cache[renderState]=shader
-        self.casheByNodes[neededSet]=shader
-        return shader
-            

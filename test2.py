@@ -5,6 +5,6 @@ from shaderBuilder import *
 
 lib=Library(["library"])
 
-builder=lib.loadGraph("graph/lit.txt")
+builder=lib.loadScript("graph/lit.gen")
 
 s = builder.getShader(None,"ShadersOut/debug.sha")
