@@ -7,29 +7,28 @@
 : code
 // Some Lib 1 //
 
-
 :: node
 : info
-name vertexNormal
-: shaderinputs
-varying float3 vtx_normal: NORMAL
-: outlinks
-float3 norm
-
-: code
-norm=vtx_normal;
-
-:: node
-: info
-name exportNormal
-: shaderoutputs
-float3 l_normal
+name float4To3
 : inlinks
-float3 norm
-
+float4 v
+: outlinks
+float3 outv
 : code
-l_normal=norm;
+outv = v.xyz;
 
+
+
+:: node
+: info
+name sampleTexure
+: inlinks
+sampler2D tex
+float2 l_texcoord0
+: outlinks
+float4 color
+: code
+color = tex2D(tex, l_texcoord0);
 
 :: node
 : info
@@ -50,26 +49,6 @@ float4 l=lit(NdotL , NdotH , 100);
 specularLight=mat[1].xyz*l.z*1;
 diffuseLight=mat[0].xyz*l.y;
 
-:: node
-: info
-name redOut
-: outlinks
-float3 color
-: code
-color = float3(1,0,0);
-
-
-
-:: node
-: info
-name colorOut
-: inlinks
-float3 color
-: shaderOutputs
-float4 o_color: COLOR
-
-: code
-o_color = float4(color,1);
 
 :: node
 : info

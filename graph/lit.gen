@@ -1,13 +1,43 @@
-def fshader():
-    diffuseColor=redOut()
-    dlight=directionalLight()
-    diffuse=float3Multiply(diffuseColor,dlight.diffuseLight)
-    lighting=float3Sum(diffuse,dlight.specularLight)
-    colorOut(lighting)
+# the nodes instanced here are defined either by the library (in library/basic.txt)
+# or by nodes.py
+# see those locations for details on the nodes
+# all names preloaded into global scope are node classes
 
 def vshader():
+    # perform the standard vertex projection using the node from the library
     vProj=vertProject()
-    vNorm=vertexNormal()
-    exportNormal(vNorm)
-    AssertActiveNode(vNorm)
     
+    # pass the normals through to the fshader
+    vNorm=Input("varying float3 vtx_normal: NORMAL")
+    Output(vNorm,"float3 l_normal")
+    
+    # uv
+    uv=Input("float2 vtx_texcoord0 : TEXCOORD0")
+    Output(uv,"float2 l_texcoord0 : TEXCOORD0")
+
+def fshader():
+    # get uv
+    uv=Input("float2 l_texcoord0 : TEXCOORD0")
+    
+    # sample texture if there is one
+    # get the texture
+    _tex=Input("uniform sampler2D tex_0 : TEXUNIT0")
+    # is there a texture?
+    hasTex=HasTextureAttrib()
+    # make tex avaliable only if there is a texture
+    tex=ConditionalPassThrough(hasTex,_tex)
+    # sample the texture. These are simple code nodes, which
+    # means their output is available if all their inputs are
+    # so there is a diffuse color only when tex is avalaible
+    diffuseColor4=sampleTexure(tex,uv)
+    diffuseColor=float4To3(diffuseColor4)
+    
+    # apply lighting
+    dlight=directionalLight()
+    # the boolean here is is the requireAll value.
+    # False means to apply the operater to all available inputs
+    diffuse=Operator(False,"*",diffuseColor,dlight.diffuseLight)
+    lighting=Operator(True,"+",diffuse,dlight.specularLight)
+    
+    # Output color
+    Output(lighting,"float3 o_color: COLOR")

@@ -1,7 +1,7 @@
 import itertools
 import param
 
-from panda3d.core import MaterialAttrib,ColorAttrib
+from panda3d.core import MaterialAttrib,ColorAttrib,TextureAttrib
 
 """
 
@@ -101,6 +101,7 @@ class Node(object):
 def assertString(s): assert isinstance(s,str)
 def assertLink(s): assert isinstance(s,Link), s.__class__
 def assertParam(s): assert isinstance(s,param.Param), s.__class__
+def assertEqual(a,b): assert a==b, (a,b)
 
 class LinkError(Exception):
     """Base class for exceptions in this module."""
@@ -268,7 +269,7 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
         assert len(inlinks)>0
         firstType=inlinks[0].getType()
         for link in inlinks:
-            assert firstType==link.getType()
+            assertEqual(firstType,link.getType())
             
         outLink=Link(firstType)
         SingleOutputMixin.__init__(self,outLink)
@@ -372,7 +373,7 @@ class Output(ScriptNode):
         assertString(outputDef)
         output=param.shaderParamFromDefCode(outputDef)
         
-        assert inlink.getType()==output.getShortType()
+        assertEqual(inlink.getType(),output.getShortType())
         
         source=makePassThroughCode(output.getType(),True)
         self.activeNode=ActiveNode((),(output,),(inlink,),(),source,True)
@@ -420,6 +421,7 @@ def metaHasRenderAttrib(slot):
     
 reg(metaHasRenderAttrib(MaterialAttrib.getClassSlot()),"HasMaterial")
 reg(metaHasRenderAttrib(ColorAttrib.getClassSlot()),"HasColorAttrib")
+reg(metaHasRenderAttrib(TextureAttrib.getClassSlot()),"HasTextureAttrib")
 
 @reg
 class HasColumn(SingleOutputMixin,ScriptNode):

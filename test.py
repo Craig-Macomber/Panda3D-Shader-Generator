@@ -16,8 +16,12 @@ from shaderBuilder import Library,ShaderBuilder
 
 lib=Library(["library"])
 builder=lib.loadScript("graph/lit.gen")
+renderStateFactory=builder.setupRenderStateFactory()
 
-s = builder.getShader(None,"ShadersOut/debug")
+
+def makeShader(pandaNode,pandaRenderState=None,geomVertexFormat=None):
+    genRenderState=renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat)
+    return builder.getShader(genRenderState,"ShadersOut/debug")
 
 
 """
@@ -75,7 +79,7 @@ dlight.setColor(Vec4(4.9, 0.9, 0.8, 1))
 dlight.setSpecularColor(Vec4(0.9, 0.9, 0.8, 10))
 dlnp = render.attachNewNode(dlight)
 dlnp.setHpr(0, 0, 0)
-render.setLight(dlnp)
+#render.setLight(dlnp)
 render.setShaderInput('dlight',dlnp)
 
 dayCycle=dlnp.hprInterval(10.0,Point3(0,360,0))
@@ -86,32 +90,35 @@ alight = AmbientLight('alight')
 alight.setColor(Vec4(0.2, 0.2, 0.2, 1))
 alnp = render.attachNewNode(alight)
 render.setLight(alnp)
-render.setShaderInput('alight',alnp)
+#render.setShaderInput('alight',alnp)
 
 
+#render.setTransparency(TransparencyAttrib.MNone,100)
 
+# a helper
+def _getShaderAtrib(renderState):
+    shaderAtrib=renderState.getAttrib(ShaderAttrib.getClassSlot())
+    if not shaderAtrib:
+        shaderAtrib = ShaderAttrib.make()
+    return shaderAtrib
 
+# walk all geoms and generate shaders for them
+def _process(node):   
+    nn=node.node()
+    if nn.isGeomNode():
+        for i,renderState in enumerate(nn.getGeomStates()):
+            geomVertexFormat=nn.getGeom(i).getVertexData().getFormat()
+            shader=makeShader(node,renderState,geomVertexFormat)
+            shaderAtrib=_getShaderAtrib(renderState)
+            shaderAtrib=shaderAtrib.setShader(shader)
+            renderState=renderState.setAttrib(shaderAtrib)
+            nn.setGeomState(i,renderState)
+            
+    
+    for n in node.getChildren():
+        _process(n)    
 
-
-
-# Setup some interesting shader inputs
-# tinting is pretty lame, but its a demo.
-# Relly should just use NodePath.setColorScale, and make an effect use that
-# but we can demo custom shader inputs and filters this way
-environ.setShaderInput('tintColor',Vec4(.2,.3,.5,1))
-
-# this one is auctually useful. It lets you scale the whole scene brightness
-# it could be adjusted dynamically, and could be used as part of an HDR scheme
-render.setShaderInput('exposure',2)
-
-# this forces hard edged transparency, and thus frees the alpha channel for other stuff
-render.setShaderInput('transparancyThreshold',.5)
-
-
-# disable trasnparency so alpha to bloom filter is not crazy
-render.setTransparency(TransparencyAttrib.MNone,100)
-
-pandaActor.setShader(s)
+_process(render)
 
 
 run()

@@ -1,10 +1,7 @@
-def fshader():
-    red=redOut()
-    colorOut(red)
-    AssertActiveNode(red)
-
 def vshader():
+    # perform the standard vertex projection
     vProj=vertProject()
-    vNorm=vertexNormal()
-    exportNormal(vNorm)
-    AssertActiveNode(vNorm)
+
+def fshader():
+    red=Constant("float4","float4(1,0,0,1)")
+    Output(red,"float4 o_color: COLOR")
