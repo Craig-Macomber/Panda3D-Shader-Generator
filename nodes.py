@@ -1,6 +1,8 @@
 import itertools
 import param
 
+from panda3d.core import MaterialAttrib,ColorAttrib
+
 """
 
 This module contains the basic NodeType implementation, including the classes it instances
@@ -21,6 +23,7 @@ class Link(object):
         self.dataType=dataType
         self.name=name
     def getType(self): return self.dataType
+    def getName(self): return self.name
     def __repr__(self):
         return "Link"+str(tuple([self.dataType,self.name]))
         
@@ -193,17 +196,22 @@ def metaCodeNode(source,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut):
     return CustomCodeNode
 
 
-def makePassThroughCode(type):
-    return "(in {t} input,out {t} ouput){ouput=input;}".replace("{t}",type)
-
+def makePassThroughCode(type,backwards=False):
+    if backwards:
+        s="(out {t} ouput,in {t} input)"
+    else:
+        s="(in {t} input,out {t} ouput)"
+    return s.replace("{t}",type)+"{ouput=input;}"
+    
 class SingleOutputMixin(object):
     def __init__(self,outLink):
         self.outLink=outLink
     def getDefaultLink(self):
         return self.outLink
 
+
 @reg
-class ConditionalInput(SingleOutputMixin,ScriptNode):
+class Input(SingleOutputMixin,ScriptNode):
     """
     makes an active node that outputs the ConditionalInput shader input from the node's data dict
     or no active note if input is not available.
@@ -213,22 +221,35 @@ class ConditionalInput(SingleOutputMixin,ScriptNode):
         ScriptNode.__init__(self)
         assertString(inputDef)
         
-        info=inputDef.split()
-        self.inputName=info[0]
-        info[0]="k_"+info[0] # add prefix for shader input
-        input=param.ShaderInput(*info)
+        input=param.shaderParamFromDefCode(inputDef)
+        
+        name=input.getName()
+        if name.startswith("k_"):
+            name=input.name[2:]
+        self.inputName=name
+        
         
         source=makePassThroughCode(input.getType())
         
-        outLink=Link(input.getType())
+        outLink=Link(input.getShortType())
         SingleOutputMixin.__init__(self,outLink)
         self.activeNode=ActiveNode((input,),(),(),(outLink,),source,False)
 
         
     def getActiveNode(self,renderState,linkStatus):
+        linkStatus[self.outLink] = True
+        return self.activeNode
+
+
+@reg
+class ConditionalInput(Input):
+    """
+    makes an active node that outputs the ConditionalInput shader input from the node's data dict
+    or no active note if input is not available.
+    """
+    def getActiveNode(self,renderState,linkStatus):
         if renderState.hasShaderInput(self.inputName):
-            linkStatus[self.outLink] = True
-            return self.activeNode
+            return Input.getActiveNode(self,renderState,linkStatus)
         else:
             return None
             
@@ -301,3 +322,118 @@ class ConditionalPassThrough(SingleOutputMixin,ScriptNode):
             return self.activeNode
         else:
             return None
+
+
+@reg
+class Operator(SingleOutputMixin,LinksNode):
+    def __init__(self,requireAll,op,*inlinks):
+        LinksNode.__init__(self,*inlinks)
+        self.requireAll=bool(requireAll)
+        assertString(op)
+        self.op=op
+        
+        assert len(inlinks)>0
+        firstType=inlinks[0].getType()
+#         for link in inlinks:
+#             assert firstType==link.getType()
+        
+        outLink=Link(firstType,"output")
+        
+        SingleOutputMixin.__init__(self,outLink)
+        if requireAll:
+            self.activeNode=self.makeActiveNode(inlinks)
+    
+    def makeActiveNode(self,inlinks):
+        params=[param.Param("input"+str(i),link.getType()) for i,link in enumerate(inlinks)]
+        type=self.outLink.getType()
+        code="output="+self.op.join(p.getName() for p in params)+";"
+        source=makeFullCode(code,(),(),params,(self.outLink,))
+        return ActiveNode((),(),inlinks,(self.outLink,),source,False)
+        
+    def getActiveNode(self,renderState,linkStatus):
+        if self.requireAll:
+            if allActive(linkStatus,self.links):
+                linkStatus[self.outLink]=True
+                return self.activeNode
+            else:
+                None 
+        else:
+            activeInputs=[link for link in self.links if linkStatus[link]]
+            if len(activeInputs)>0:
+                linkStatus[self.outLink]=True
+                return self.makeActiveNode(tuple(activeInputs))
+            else:
+                return None
+
+@reg
+class Output(ScriptNode):
+    def __init__(self,inlink,outputDef):
+        ScriptNode.__init__(self)
+        assertString(outputDef)
+        output=param.shaderParamFromDefCode(outputDef)
+        
+        assert inlink.getType()==output.getShortType()
+        
+        source=makePassThroughCode(output.getType(),True)
+        self.activeNode=ActiveNode((),(output,),(inlink,),(),source,True)
+
+        self.inlink=inlink
+        
+    def getActiveNode(self,renderState,linkStatus):
+        assert linkStatus[self.inlink]
+        return self.activeNode
+
+@reg
+class Constant(SingleOutputMixin,ScriptNode):
+    def __init__(self,type,value):
+        ScriptNode.__init__(self)
+        assertString(type)
+        assertString(value)
+        
+        outLink=Link(type,"output")
+        
+        SingleOutputMixin.__init__(self,outLink)
+        code="output="+value+";"
+        source=makeFullCode(code,(),(),(),(self.outLink,))
+        self.activeNode=ActiveNode((),(),(),(self.outLink,),source,False)
+    
+    def getActiveNode(self,renderState,linkStatus):
+        linkStatus[self.outLink]=True
+        return self.activeNode
+
+
+def metaHasRenderAttrib(slot):
+    class HasRenderAttrib(SingleOutputMixin,ScriptNode):
+        def __init__(self):
+            ScriptNode.__init__(self)
+            outLink=Link(boolLinkType)
+            SingleOutputMixin.__init__(self,outLink)
+            
+        def getActiveNode(self,renderState,linkStatus):
+            if renderState.hasRenderAttrib(slot):
+                linkStatus[self.outLink] = True
+            return None
+                
+        def setupRenderStateFactory(self,renderStateFactory):
+            renderStateFactory.hasRenderAttribs.add(slot)
+    return HasRenderAttrib
+    
+reg(metaHasRenderAttrib(MaterialAttrib.getClassSlot()),"HasMaterial")
+reg(metaHasRenderAttrib(ColorAttrib.getClassSlot()),"HasColorAttrib")
+
+@reg
+class HasColumn(SingleOutputMixin,ScriptNode):
+    def __init__(self,name):
+        assertString(name)
+        self.name=name
+        ScriptNode.__init__(self)
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNode(self,renderState,linkStatus):
+        if renderState.hasGeomVertexDataColumns(self.name):
+            linkStatus[self.outLink] = True
+        return None
+            
+    def setupRenderStateFactory(self,renderStateFactory):
+        renderStateFactory.geomVertexDataColumns.add(self.name)

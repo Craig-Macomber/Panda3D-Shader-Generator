@@ -52,6 +52,7 @@ class ShaderParam(Param):
     def getDefCode(self): return self.type+" "+self.name+((" : "+self.semantic) if self.semantic else "")
     def __eq__(self,other):
         return Param.__eq__(self,other) and self.semantic==other.semantic
+    def getShortType(self): return self.type.split()[-1]
     
 class ShaderInput(ShaderParam): pass
 class ShaderOutput(ShaderParam): pass

@@ -11,7 +11,10 @@ class RenderStateFactory(object):
     def __init__(self):
         self.tags=set() # add tags we care about here, by name
         self.shaderInputs=set() # add shaderInput names we care about here, by name
-    def getRenderState(self,pandaNode,pandaRenderState=None):
+        self.hasRenderAttribs=set()  # add RenderAttrib.getClassSlot() values here if the presense matters (not the specific value)
+        #self.renderAttribs=set() # add RenderAttrib.getClassSlot() values here
+        self.geomVertexDataColumns=set() # by name
+    def getRenderState(self,pandaNode,pandaRenderState=None,geomVertexFormat=None):
         """
         returns a RenderState instance for a given pandaNode, and optionally a specified panda3d.RenderState
         
@@ -23,7 +26,7 @@ class RenderStateFactory(object):
         """
         if pandaRenderState is None: pandaRenderState=pandaNode.getNetState()
         
-        return self._getRenderState(self._getTagDict(pandaNode),pandaRenderState)
+        return self._getRenderState(self._getTagDict(pandaNode),pandaRenderState,geomVertexFormat)
     
     def _getTagDict(self,pandaNode):
         tags={}
@@ -31,7 +34,7 @@ class RenderStateFactory(object):
             if pandaNode.hasNetTag(t): tags[t]=pandaNode.getNetTag(t)
         return tags
     
-    def _getRenderState(self,tagDict,pandaRenderState):
+    def _getRenderState(self,tagDict,pandaRenderState,geomVertexFormat):
         shaderAtrib=pandaRenderState.getAttrib(ShaderAttrib.getClassSlot())
         if shaderAtrib:
             # basically we want the intersection of self.shaderInputs, and the shader inputs in shaderAtrib
@@ -41,8 +44,14 @@ class RenderStateFactory(object):
             shaderInputs=frozenset(s for s in self.shaderInputs if shaderAtrib.getShaderInput(s).getName() is not None)
         else:
             shaderInputs=frozenset()
+        
+        hasRenderAttribs=frozenset(slot for slot in self.hasRenderAttribs if pandaRenderState.hasAttrib(slot))
+        if geomVertexFormat is not None:
+            columns=frozenset(column for column in self.geomVertexDataColumns if geomVertexFormat.hasColumn(column))
+        else:
+            columns=frozenset()
 
-        return RenderState(pandaRenderState,tagDict,shaderInputs)
+        return RenderState(pandaRenderState,tagDict,shaderInputs,hasRenderAttribs,columns)
     
 class RenderState(object):
     """
@@ -56,11 +65,19 @@ class RenderState(object):
     When subclassing to add more fields, be sure to __eq__ the comparison and __hash__ methods.
     
     """
-    def __init__(self,pandaRenderState,tagDict,shaderInputSet):
+    def __init__(self,pandaRenderState,tagDict,shaderInputSet,hasRenderAttribs,columns):
         self.shaderInputs=shaderInputSet
         self.tags=tagDict
+        self.hasRenderAttribs=hasRenderAttribs
+        self.columns=columns
         # TODO : better hash
-        self._hash = hash(shaderInputSet) ^ len(tagDict)
+        self._hash = hash(shaderInputSet) ^ len(tagDict) ^ hash(hasRenderAttribs) ^ hash(columns)
+    
+    def hasGeomVertexDataColumns(self,name):
+        return name in self.columns
+    
+    def hasRenderAttrib(self,slot):
+        return slot in self.hasRenderAttribs
     
     def hasShaderInput(self,name):
         return name in self.shaderInputs
@@ -75,7 +92,7 @@ class RenderState(object):
         return self._hash
     
     def __eq__(self,other):
-        return self.shaderInputs==other.shaderInputs and self.tags==other.tags
+        return self.shaderInputs==other.shaderInputs and self.tags==other.tags and self.hasRenderAttribs==other.hasRenderAttribs and self.columns==other.columns
     
     def __repr__(self): return "RenderState"+str((self.shaderInputs,self.tags))
         
