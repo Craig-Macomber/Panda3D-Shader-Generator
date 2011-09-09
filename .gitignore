@@ -1,2 +1,2 @@
 *.pyc
-ShadersOut/debug*
+ShadersOut/*.sha

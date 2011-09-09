@@ -19,9 +19,10 @@ builder=lib.loadScript("graph/lit.gen")
 renderStateFactory=builder.setupRenderStateFactory()
 
 
-def makeShader(pandaNode,pandaRenderState=None,geomVertexFormat=None):
+def makeShader(pandaNode,pandaRenderState=None,geomVertexFormat=None,debugName=None):
     genRenderState=renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat)
-    return builder.getShader(genRenderState,"ShadersOut/debug")
+    debugPath="ShadersOut/"+debugName if debugName else None
+    return builder.getShader(genRenderState,debugPath)
 
 
 """
@@ -103,12 +104,16 @@ def _getShaderAtrib(renderState):
     return shaderAtrib
 
 # walk all geoms and generate shaders for them
-def _process(node):   
+def genShaders(node,debugName=None):
     nn=node.node()
     if nn.isGeomNode():
         for i,renderState in enumerate(nn.getGeomStates()):
             geomVertexFormat=nn.getGeom(i).getVertexData().getFormat()
-            shader=makeShader(node,renderState,geomVertexFormat)
+
+            # TODO : the order of composing might be wrong!
+            netRs=renderState.compose(node.getNetState())
+
+            shader=makeShader(node,netRs,geomVertexFormat,debugName=debugName)
             shaderAtrib=_getShaderAtrib(renderState)
             shaderAtrib=shaderAtrib.setShader(shader)
             renderState=renderState.setAttrib(shaderAtrib)
@@ -116,9 +121,8 @@ def _process(node):
             
     
     for n in node.getChildren():
-        _process(n)    
-
-_process(render)
+        genShaders(n,debugName)
+genShaders(render,"generatedShaders")
 
 
 run()

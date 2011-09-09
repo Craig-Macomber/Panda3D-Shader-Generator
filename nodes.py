@@ -285,7 +285,7 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
 
 
 @reg
-class RequireTag(SingleOutputMixin,ScriptNode):
+class HasTag(SingleOutputMixin,ScriptNode):
     """
     this node produces no activeNode, but marks it's outlink as active if the tag is present
     """
@@ -385,6 +385,14 @@ class Output(ScriptNode):
         return self.activeNode
 
 @reg
+class ConditionalOutput(Output):
+    def getActiveNode(self,renderState,linkStatus):
+        if linkStatus[self.inlink]:
+            return self.activeNode
+        else:
+            return None
+
+@reg
 class Constant(SingleOutputMixin,ScriptNode):
     def __init__(self,type,value):
         ScriptNode.__init__(self)
@@ -439,3 +447,27 @@ class HasColumn(SingleOutputMixin,ScriptNode):
             
     def setupRenderStateFactory(self,renderStateFactory):
         renderStateFactory.geomVertexDataColumns.add(self.name)
+        
+
+@reg
+class Select(SingleOutputMixin,ScriptNode):
+    def __init__(self,conditionLink,dataLinkA,dataLinkB):
+        ScriptNode.__init__(self)
+        assertLink(conditionLink)
+        assertEqual(dataLinkA.getType(),dataLinkB.getType())
+        self.conditionLink=conditionLink
+        self.dataLinkA=dataLinkA
+        self.dataLinkB=dataLinkB
+        type=dataLinkA.getType()
+        outLink=Link(type)
+        source=makePassThroughCode(type)
+        self.activeNodeA=ActiveNode((),(),(dataLinkA,),(outLink,),source,False)
+        self.activeNodeB=ActiveNode((),(),(dataLinkB,),(outLink,),source,False)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNode(self,renderState,linkStatus):
+        linkStatus[self.outLink] = True
+        if linkStatus[self.conditionLink]:
+            return self.activeNodeA
+        else:
+            return self.activeNodeB
