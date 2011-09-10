@@ -1,11 +1,11 @@
 :: lib
 : code
-// Some Lib 0 //
+// Some Example Lib 0 //
 
 
 :: lib
 : code
-// Some Lib 1 //
+// Some Example Lib 1 //
 
 :: node
 : info
@@ -18,7 +18,7 @@ float3 outv
 outv = v.xyz;
 
 
-
+# sample a texture
 :: node
 : info
 name sampleTexure
@@ -30,16 +30,16 @@ float4 color
 : code
 color = tex2D(tex, l_texcoord0);
 
+# produce specularLight and diffuseLight values from directional light named "dlight"
 :: node
 : info
 name directionalLight
 : shaderinputs
 uniform float4x4 dlight_dlight_to_model
-float3 l_normal
+float3 l_normal : TEXCOORD2
 : outlinks
 float3 specularLight
 float3 diffuseLight
-
 : code
 float4x4 mat=(dlight_dlight_to_model);
 float NdotL=dot(l_normal,normalize(mat[2].xyz));
@@ -49,17 +49,43 @@ float4 l=lit(NdotL , NdotH , 100);
 specularLight=mat[1].xyz*l.z*1;
 diffuseLight=mat[0].xyz*l.y;
 
-
+# transform from model to projected space, and ouput as vertex pos
 :: node
 : info
 name vertProject
-
 : shaderInputs
 uniform float4x4 mat_modelproj
-float4 vtx_position : POSITION
-
+: inlinks
+float4 vtx_position
 : shaderOutputs
 float4 l_position : POSITION
-
 : code
 l_position = mul(mat_modelproj, vtx_position);
+
+# transform from model to view space
+:: node
+: info
+name viewSpace
+: shaderInputs
+uniform float4x4 trans_model_to_view
+: inlinks
+float4 vtx_position
+: outlinks
+float4 l_vpos
+: code
+l_vpos=mul(trans_model_to_view, vtx_position);
+
+# Basic exponential fog computation
+:: node
+: info
+name fog
+: inlinks
+float4 viewPos
+float3 color
+float3 fogColor
+float density
+: outlinks
+float3 outColor
+: code
+float f=exp(-density*length(viewPos.xyz));
+outColor=lerp(fogColor,color,f);
