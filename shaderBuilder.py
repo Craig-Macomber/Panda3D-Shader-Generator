@@ -33,13 +33,6 @@ Usage:
     your scene
 
 
-Developing libraries:
-Shader code defines NodeTypes in the library .txt files. New NodeTypes can be added this way.
-The NodeType class can be considered a metaClass of sorts for NodeTypes defined in the libraries.
-Subclass NodeType and provide the new Class to the Library to allow the class info field in
-the library's nodes to refer to it. This allows new render state dependant code generation.
-
-
 TODO :
 
 Loaders really need to assoiate file name and line numbers with all the loaded items

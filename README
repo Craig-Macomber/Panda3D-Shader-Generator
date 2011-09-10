@@ -3,7 +3,7 @@ Specifically, a Shader Meta-Language for implementing, customizing and extending
 
 Goals:
 - Allow coders to provide all possible shader effects (no restrictions on shader code, stages used, inputs, outputs etc) (Done)
-- Allow easy realtime configuration and tuning of effects (accessible to artists and coders) (Started, see editor)
+- Allow easy realtime configuration and tuning of effects (accessible to artists and coders) (Not started, not longer emphasized)
 - Generate custom shaders based on render state and other settings on a per NodePath basis from a single configuration (Done via use of meta-language design)
 - Allow easy use of multiple separate configurations applied to different NodePaths (ex: one for deferred shaded lights, one for models, one for particles. Done.)
 - Produce an extensive collection of useful NodeTypes and example Graphs, sample applications etc. (Most of the remaining work is here)
@@ -15,9 +15,9 @@ The focus on allowing full control of the shaders is important. A shader generat
 
 Many more details in shaderBuilder.py, see comments near top.
 
-ShaderEditor TODO:
+Example Meta-Language scripts are in the graph directory. These scripts create a graph structure that is used to generate the final shader graphs for different render states which are compiled into shaders.
 
-Allow editing
-Add previewing
-Allow showing part of graph that is active (and perhaps other link status values) in editor for specific NodePaths
+The set of nodes that can be used in these graphs are the regestered classes from nodes.py, and those loaded from the libraries (see the library folder).
+
+Its possibe to add custom node types implemented in python, simply provide them when instancting the shaderBuilder.Library
 
