@@ -48,19 +48,21 @@ class ActiveNode(object):
         else:
             o = cls.cache[v] = object.__new__(cls)
             return o
-    def __init__(self,shaderInputs,shaderOutputs,inLinks,outLinks,code,isOutPut):
+    def __init__(self,shaderInputs,shaderOutputs,inLinks,outLinks,code,isOutPut,comment=""):
         self.shaderInputs=shaderInputs
         self.shaderOutputs=shaderOutputs
         self.inLinks=inLinks
         self.outLinks=outLinks
         self.code=code
         self.outPut=isOutPut
+        self.comment=comment
     def getShaderInputs(self): return self.shaderInputs
     def getShaderOutputs(self): return self.shaderOutputs
     def getInLinks(self): return self.inLinks
     def getOutLinks(self): return self.outLinks
     def isOutPut(self): return self.outPut
     def getCode(self): return self.code
+    def getComment(self): return self.comment
     def __repr__(self):
         return "ActiveNode"+str(tuple([self.shaderInputs,self.shaderOutputs,self.inLinks,self.outLinks,"<code>",self.outPut]))
  
@@ -161,7 +163,7 @@ class CodeNode(AllActiveNode):
     """
     def __init__(self,source,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut):
         self.source=source
-        activeNode=ActiveNode(tuple(shaderInputs),tuple(shaderOutputs),tuple(inLinks),tuple(outLinks),self.source,isOutPut)
+        activeNode=ActiveNode(tuple(shaderInputs),tuple(shaderOutputs),tuple(inLinks),tuple(outLinks),self.source,isOutPut,"CodeNode")
         AllActiveNode.__init__(self,activeNode,*inLinks)
     def getLink(self,name):
         for link in self.activeNode.getOutLinks():
@@ -234,7 +236,7 @@ class Input(SingleOutputMixin,ScriptNode):
         
         outLink=Link(input.getShortType())
         SingleOutputMixin.__init__(self,outLink)
-        self.activeNode=ActiveNode((input,),(),(),(outLink,),source,False)
+        self.activeNode=ActiveNode((input,),(),(),(outLink,),source,False,"Input: "+inputDef)
 
         
     def getActiveNode(self,renderState,linkStatus):
@@ -277,10 +279,11 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
         
         
     def getActiveNode(self,renderState,linkStatus):
-        for input in self.links:
+        for i,input in enumerate(self.links):
             if linkStatus[input]:
                 linkStatus[self.outLink] = True
-                return ActiveNode((),(),(input,),(self.outLink,),self.source,False)
+                return ActiveNode((),(),(input,),(self.outLink,),self.source,False,
+                    "FirstAvailable: choose #"+str(i)+" of "+str(len(self.links)))
         return None
 
 
@@ -314,7 +317,7 @@ class ConditionalPassThrough(SingleOutputMixin,ScriptNode):
         type=dataLink.getType()
         outLink=Link(type)
         source=makePassThroughCode(type)
-        self.activeNode=ActiveNode((),(),(dataLink,),(outLink,),source,False)
+        self.activeNode=ActiveNode((),(),(dataLink,),(outLink,),source,False,"ConditionalPassThrough")
         SingleOutputMixin.__init__(self,outLink)
         
     def getActiveNode(self,renderState,linkStatus):
@@ -349,7 +352,7 @@ class Operator(SingleOutputMixin,LinksNode):
         type=self.outLink.getType()
         code="output="+self.op.join(p.getName() for p in params)+";"
         source=makeFullCode(code,(),(),params,(self.outLink,))
-        return ActiveNode((),(),inlinks,(self.outLink,),source,False)
+        return ActiveNode((),(),inlinks,(self.outLink,),source,False,"Operator: "+self.op)
         
     def getActiveNode(self,renderState,linkStatus):
         if self.requireAll:
@@ -376,7 +379,7 @@ class Output(ScriptNode):
         assertEqual(inlink.getType(),output.getShortType())
         
         source=makePassThroughCode(output.getType(),True)
-        self.activeNode=ActiveNode((),(output,),(inlink,),(),source,True)
+        self.activeNode=ActiveNode((),(output,),(inlink,),(),source,True,"Output: "+outputDef)
 
         self.inlink=inlink
         
@@ -404,7 +407,7 @@ class Constant(SingleOutputMixin,ScriptNode):
         SingleOutputMixin.__init__(self,outLink)
         code="output="+value+";"
         source=makeFullCode(code,(),(),(),(self.outLink,))
-        self.activeNode=ActiveNode((),(),(),(self.outLink,),source,False)
+        self.activeNode=ActiveNode((),(),(),(self.outLink,),source,False,"Constant: "+type+"="+value)
     
     def getActiveNode(self,renderState,linkStatus):
         linkStatus[self.outLink]=True
@@ -461,8 +464,8 @@ class Select(SingleOutputMixin,ScriptNode):
         type=dataLinkA.getType()
         outLink=Link(type)
         source=makePassThroughCode(type)
-        self.activeNodeA=ActiveNode((),(),(dataLinkA,),(outLink,),source,False)
-        self.activeNodeB=ActiveNode((),(),(dataLinkB,),(outLink,),source,False)
+        self.activeNodeA=ActiveNode((),(),(dataLinkA,),(outLink,),source,False,"SelectA")
+        self.activeNodeB=ActiveNode((),(),(dataLinkB,),(outLink,),source,False,"SelectB")
         SingleOutputMixin.__init__(self,outLink)
         
     def getActiveNode(self,renderState,linkStatus):

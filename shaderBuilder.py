@@ -436,6 +436,8 @@ class StageBuilder(object):
     
     All nodes used in here are ActiveNodes
     
+    built bottom up
+    
     """
     def __init__(self):
         self.links=AutoNamer("__x")
@@ -463,24 +465,25 @@ class StageBuilder(object):
             
         ld=self.links.getItems()
         
-        
-        fname=functionNamer.nextName()
-
-        f="void "+fname+node.getCode()
-        if debugText:f="//"+str(node)+'\n'+f
-        functionNamer.addItem(f)
-        
-        
         paramChain=itertools.chain(
             (s.getName() for s in inputs),
             (s.getName() for s in outputs),
             (ld[s] for s in itertools.chain(inLinks,outLinks)),
             )
         
-        
-        
+        fname=functionNamer.nextName()        
         callSource=fname+"("+",".join(paramChain)+");"
         self.sourceLines.append(callSource)
+        
+        # make the function
+        f="void "+fname+node.getCode()
+        
+        if debugText:
+            comment="//"+node.getComment()
+            f=comment+'\n'+f
+            self.sourceLines.append('\n'+comment)
+        functionNamer.addItem(f)
+        
         
     def generateSource(self,name):
         paramChain=itertools.chain(
