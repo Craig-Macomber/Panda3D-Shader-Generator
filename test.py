@@ -10,23 +10,12 @@ import math
 import direct.directbase.DirectStart
 print PandaSystem.getVersionString()
 
-from shaderBuilder import Library,ShaderBuilder
 
-
-
-lib=Library(["library"])
-builder=lib.loadScript("graph/lit.gen")
-renderStateFactory=builder.setupRenderStateFactory()
-
-
-def makeShader(pandaNode,pandaRenderState=None,geomVertexFormat=None,debugName=None):
-    genRenderState=renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat)
-    debugPath="ShadersOut/"+debugName if debugName else None
-    return builder.getShader(genRenderState,debugPath)
+import manager
 
 
 """
-Shader Generator Demo
+Shader Generator Demo, see bottom for application of shader system to scene
 
 """
 
@@ -96,33 +85,10 @@ render.setLight(alnp)
 
 #render.setTransparency(TransparencyAttrib.MNone,100)
 
-# a helper
-def _getShaderAtrib(renderState):
-    shaderAtrib=renderState.getAttrib(ShaderAttrib.getClassSlot())
-    if not shaderAtrib:
-        shaderAtrib = ShaderAttrib.make()
-    return shaderAtrib
 
-# walk all geoms and generate shaders for them
-def genShaders(node,debugName=None):
-    nn=node.node()
-    if nn.isGeomNode():
-        for i,renderState in enumerate(nn.getGeomStates()):
-            geomVertexFormat=nn.getGeom(i).getVertexData().getFormat()
-
-            # TODO : the order of composing might be wrong!
-            netRs=renderState.compose(node.getNetState())
-
-            shader=makeShader(node,netRs,geomVertexFormat,debugName=debugName)
-            shaderAtrib=_getShaderAtrib(renderState)
-            shaderAtrib=shaderAtrib.setShader(shader)
-            renderState=renderState.setAttrib(shaderAtrib)
-            nn.setGeomState(i,renderState)
-            
-    
-    for n in node.getChildren():
-        genShaders(n,debugName)
-genShaders(render,"generatedShaders")
+##-----------Generate Shaders with Shader Generator-----------##
+shaderManager=manager.getManager(["library"],"graph/lit.gen")
+shaderManager.genShaders(render,"ShadersOut/debug")
 
 
 run()
