@@ -1,0 +1,34 @@
+# the nodes instanced here are defined either by the library (in library/basic.txt)
+# or by nodes.py
+# see those locations for details on the nodes
+# all names preloaded into global scope are node classes
+
+# vshader
+# perform the standard vertex projection using the node from the library
+vertexPos=Input("float4 vtx_position : POSITION")
+vProj=vertProject(vertexPos)
+Output("vshader",vProj,"float4 l_position : POSITION")
+
+# uv
+vert_uv=Input("float2 vtx_texcoord0 : TEXCOORD0")
+uv=Output("vshader",vert_uv,"float2 l_texcoord0 : TEXCOORD0")
+
+
+
+# fshader
+
+# sample texture if there is one
+# get the texture
+_tex=Input("uniform sampler2D tex_0 : TEXUNIT0")
+# is there a texture?
+hasTex=HasTextureAttrib()
+# make tex avaliable only if there is a texture
+tex=ConditionalPassThrough(hasTex,_tex)
+# sample the texture. These are simple code nodes, which
+# means their output is available if all their inputs are
+# so there is a diffuse color only when tex is avalaible
+diffuseColor4=sampleTexure(tex,uv)
+diffuseColor=float4To3(diffuseColor4)
+
+# Output color
+Output("fshader",diffuseColor,"float3 o_color: COLOR")
