@@ -17,6 +17,15 @@ float3 outv
 : code
 outv = v.xyz;
 
+:: node
+: info
+name float4To1
+: inlinks
+float4 v
+: outlinks
+float outv
+: code
+outv = v.x;
 
 # sample a texture
 :: node

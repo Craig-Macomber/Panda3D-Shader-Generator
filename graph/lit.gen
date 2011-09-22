@@ -46,7 +46,10 @@ lighting=Operator(True,"+",diffuse,dlight.specularLight)
 
 # apply come crummy fog
 fogColor=Constant("float3","float3(.7,.7,.8)")
-density=Constant("float","0.03")
+densityConstant=Constant("float","0.03")
+densityInput=ConditionalInput("uniform float4 k_fogDensity")
+densityInputFloat=float4To1(densityInput)
+density=FirstAvailable(densityInputFloat,densityConstant)
 fogged=fog(viewPos,lighting,fogColor,density)
 
 # Output color
