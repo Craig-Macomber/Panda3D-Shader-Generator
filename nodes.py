@@ -415,15 +415,20 @@ class Output(ScriptNode):
 
         self.inlink=inlink
         
+        self.shaderInput=Input(outputDef)
+    
+    def getDefaultLink(self):
+        return self.shaderInput.getDefaultLink()
+        
     def getActiveNodes(self,renderState,linkStatus):
         assert linkStatus[self.inlink]
-        return (self.activeNode,)
+        return (self.activeNode,self.shaderInput.getActiveNodes(renderState,linkStatus)[0])
 
 @reg
 class ConditionalOutput(Output):
     def getActiveNodes(self,renderState,linkStatus):
         if linkStatus[self.inlink]:
-            return (self.activeNode,)
+            return Output.getActiveNodes(self,renderState,linkStatus)
         else:
             return ()
 
@@ -506,3 +511,4 @@ class Select(SingleOutputMixin,ScriptNode):
             return (self.activeNodeA,)
         else:
             return (self.activeNodeB,)
+            
