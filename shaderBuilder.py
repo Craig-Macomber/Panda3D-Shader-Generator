@@ -367,8 +367,8 @@ def makeStages(nodes,renderState):
     sortedActive=[]
     
     for n in nodes:
-        a=n.getActiveNode(renderState,linkStatus)
-        if a is not None:
+        aa=n.getActiveNodes(renderState,linkStatus)
+        for a in aa:
             sortedActive.append(a)
             for link in a.getOutLinks():
                 linkToSource[link]=a

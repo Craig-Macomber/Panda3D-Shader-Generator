@@ -125,8 +125,8 @@ class Node(object):
     """
     def __init__(self):
         pass
-    def getActiveNode(self,renderState,linkStatus):
-        return None
+    def getActiveNodes(self,renderState,linkStatus):
+        return ()
     def setupRenderStateFactory(self,renderStateFactory):
         pass
 
@@ -172,21 +172,21 @@ class LinksNode(ScriptNode):
 
 @reg
 class AssertActiveNode(LinksNode):
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         assert allActive(linkStatus,self.links)
-        return None
+        return ()
         
 class AllActiveNode(LinksNode):
     def __init__(self,activeNode,*inLinks):
         LinksNode.__init__(self,*inLinks)
         self.activeNode=activeNode
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if allActive(linkStatus,self.links):
             for link in self.activeNode.outLinks:
                 linkStatus[link]=True
-            return self.activeNode
+            return (self.activeNode,)
         else:
-            return None
+            return ()
         
 class CodeNode(AllActiveNode):
     """
@@ -270,9 +270,9 @@ class Input(SingleOutputMixin,ScriptNode):
         self.activeNode=ActiveNode((input,),(),(outLink,),source,False,"Input: "+inputDef)
 
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         linkStatus[self.outLink] = True
-        return self.activeNode
+        return (self.activeNode,)
 
 
 @reg
@@ -281,11 +281,11 @@ class ConditionalInput(Input):
     makes an active node that outputs the ConditionalInput shader input from the node's data dict
     or no active note if input is not available.
     """
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if renderState.hasShaderInput(self.inputName):
-            return Input.getActiveNode(self,renderState,linkStatus)
+            return Input.getActiveNodes(self,renderState,linkStatus)
         else:
-            return None
+            return ()
             
     def setupRenderStateFactory(self,renderStateFactory):
         renderStateFactory.shaderInputs.add(self.inputName)
@@ -309,13 +309,13 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
         self.source=makePassThroughCode(firstType)
         
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         for i,input in enumerate(self.links):
             if linkStatus[input]:
                 linkStatus[self.outLink] = True
-                return ActiveNode((),(input,),(self.outLink,),self.source,False,
-                    "FirstAvailable: choose #"+str(i)+" of "+str(len(self.links)))
-        return None
+                return (ActiveNode((),(input,),(self.outLink,),self.source,False,
+                    "FirstAvailable: choose #"+str(i)+" of "+str(len(self.links))),)
+        return ()
 
 
 @reg
@@ -330,10 +330,10 @@ class HasTag(SingleOutputMixin,ScriptNode):
         outLink=Link(boolLinkType)
         SingleOutputMixin.__init__(self,outLink)
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if renderState.hasTag(self.tagName):
             linkStatus[self.outLink] = True
-        return None
+        return ()
             
     def setupRenderStateFactory(self,renderStateFactory):
         renderStateFactory.tags.add(self.tagName)
@@ -351,12 +351,12 @@ class ConditionalPassThrough(SingleOutputMixin,ScriptNode):
         self.activeNode=ActiveNode((),(dataLink,),(outLink,),source,False,"ConditionalPassThrough")
         SingleOutputMixin.__init__(self,outLink)
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if linkStatus[self.conditionLink]:
             linkStatus[self.outLink] = True
-            return self.activeNode
+            return (self.activeNode,)
         else:
-            return None
+            return ()
 
 
 @reg
@@ -385,20 +385,20 @@ class Operator(SingleOutputMixin,LinksNode):
         source=makeFullCode(code,(),params,(self.outLink,))
         return ActiveNode((),inlinks,(self.outLink,),source,False,"Operator: "+self.op)
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if self.requireAll:
             if allActive(linkStatus,self.links):
                 linkStatus[self.outLink]=True
-                return self.activeNode
+                return (self.activeNode,)
             else:
-                None 
+                return () 
         else:
             activeInputs=[link for link in self.links if linkStatus[link]]
             if len(activeInputs)>0:
                 linkStatus[self.outLink]=True
-                return self.makeActiveNode(tuple(activeInputs))
+                return (self.makeActiveNode(tuple(activeInputs)),)
             else:
-                return None
+                return ()
 
 @reg
 class Output(ScriptNode):
@@ -415,17 +415,17 @@ class Output(ScriptNode):
 
         self.inlink=inlink
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         assert linkStatus[self.inlink]
-        return self.activeNode
+        return (self.activeNode,)
 
 @reg
 class ConditionalOutput(Output):
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if linkStatus[self.inlink]:
-            return self.activeNode
+            return (self.activeNode,)
         else:
-            return None
+            return ()
 
 @reg
 class Constant(SingleOutputMixin,ScriptNode):
@@ -441,9 +441,9 @@ class Constant(SingleOutputMixin,ScriptNode):
         source=makeFullCode(code,(),(),(self.outLink,))
         self.activeNode=ActiveNode((),(),(self.outLink,),source,False,"Constant: "+type+"="+value)
     
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         linkStatus[self.outLink]=True
-        return self.activeNode
+        return (self.activeNode,)
 
 
 def metaHasRenderAttrib(slot):
@@ -453,10 +453,10 @@ def metaHasRenderAttrib(slot):
             outLink=Link(boolLinkType)
             SingleOutputMixin.__init__(self,outLink)
             
-        def getActiveNode(self,renderState,linkStatus):
+        def getActiveNodes(self,renderState,linkStatus):
             if renderState.hasRenderAttrib(slot):
                 linkStatus[self.outLink] = True
-            return None
+            return ()
                 
         def setupRenderStateFactory(self,renderStateFactory):
             renderStateFactory.hasRenderAttribs.add(slot)
@@ -475,10 +475,10 @@ class HasColumn(SingleOutputMixin,ScriptNode):
         outLink=Link(boolLinkType)
         SingleOutputMixin.__init__(self,outLink)
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         if renderState.hasGeomVertexDataColumns(self.name):
             linkStatus[self.outLink] = True
-        return None
+        return ()
             
     def setupRenderStateFactory(self,renderStateFactory):
         renderStateFactory.geomVertexDataColumns.add(self.name)
@@ -500,9 +500,9 @@ class Select(SingleOutputMixin,ScriptNode):
         self.activeNodeB=ActiveNode((),(dataLinkB,),(outLink,),source,False,"SelectB")
         SingleOutputMixin.__init__(self,outLink)
         
-    def getActiveNode(self,renderState,linkStatus):
+    def getActiveNodes(self,renderState,linkStatus):
         linkStatus[self.outLink] = True
         if linkStatus[self.conditionLink]:
-            return self.activeNodeA
+            return (self.activeNodeA,)
         else:
-            return self.activeNodeB
+            return (self.activeNodeB,)
