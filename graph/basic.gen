@@ -1,7 +1,8 @@
-def vshader():
-    # perform the standard vertex projection
-    vProj=vertProject()
+# perform the standard vertex projection
+vertexPos=Input("float4 vtx_position : POSITION")
+vProj=vertProject(vertexPos)
+Output("vshader",vProj,"float4 l_position : POSITION")
 
-def fshader():
-    red=Constant("float4","float4(1,0,0,1)")
-    Output(red,"float4 o_color: COLOR")
+# fshader
+red=Constant("float4","float4(1,0,0,1)")
+Output("fshader",red,"float4 o_color: COLOR")

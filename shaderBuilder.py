@@ -193,17 +193,16 @@ class Library(object):
                                         if "shaderinputs" in items:
                                             for s in items["shaderinputs"]:
                                                 shaderInputs.append(param.shaderParamFromDefCode(s))
-                                        shaderOutputs=[]
-                                        if "shaderoutputs" in items:
-                                            for s in items["shaderoutputs"]:
-                                                shaderOutputs.append(param.shaderParamFromDefCode(s))
                                         
                                         if "output" in info:
                                             o=info["output"]
                                             assert o in ["True","False"]
                                             isOutPut=o=="True"
+                                            assert "stage" in info
+                                            stage=info["stage"]
                                         else:
-                                            isOutPut=len(shaderOutputs)>0
+                                            isOutPut=False
+                                            stage=None
                                         
                                         inLinks=[]
                                         if "inlinks" in items:
@@ -219,7 +218,7 @@ class Library(object):
                                         if "code" in items:
                                             code="\n".join(items["code"])
                                         
-                                        node=nodes.metaCodeNode(code,shaderInputs,shaderOutputs,inLinks,outLinks,isOutPut=isOutPut)
+                                        node=nodes.metaCodeNode(code,shaderInputs,inLinks,outLinks,isOutPut=isOutPut,stage=stage)
                                         if name in self.nodeTypeClassMap:
                                             print "Warning: overwriting node "+repr(self.nodeTypeClassMap[name])+" with "+repr(node)+" from "+currentFile
                                         self.nodeTypeClassMap[name]=node
@@ -260,13 +259,9 @@ class Library(object):
         
         # run the script with the newly made globals
         locals={}
+        nodes=[]
         execfile(path,globals,locals)
-        stages={}
-        for stage,func in locals.iteritems():
-            nodes=[]
-            stages[stage]=nodes
-            func()
-        return stages
+        return nodes
         
         
 class ShaderBuilder(object):
@@ -275,13 +270,13 @@ class ShaderBuilder(object):
     A factory for shaders based off a set of Nodes. Make one instance for each distinct set of stages.
     
     """
-    def __init__(self,stages,libSource=""):
+    def __init__(self,nodes,libSource=""):
         """
         
         Takes an dict of lists of Nodes, and sets this instance up to produce shaders based on them.
         
         """
-        self.stages=stages
+        self.nodes=nodes
         
         # a cache of finished shaders. Maps RenderState to Shader
         self.cache={}
@@ -296,7 +291,7 @@ class ShaderBuilder(object):
     
     def setupRenderStateFactory(self,factory=None):
         if factory is None: factory=renderState.RenderStateFactory()
-        for n in itertools.chain.from_iterable(self.stages.values()):
+        for n in self.nodes:
             n.setupRenderStateFactory(factory)
         return factory
         
@@ -321,9 +316,7 @@ class ShaderBuilder(object):
             #if debugFile: print "Shader is cached (renderState cache). Skipping generating shader to: "+debugFile
             return shader
 
-        stages=set()
-        for name,nodes in self.stages.iteritems():
-            stages.add(makeStage(name,nodes,renderState))
+        stages=makeStages(self.nodes,renderState)
         
         stages=frozenset(stages)
         shader=self.casheByStages.get(stages)
@@ -360,11 +353,12 @@ class ShaderBuilder(object):
 
 
 
-def makeStage(name,nodes,renderState):
+def makeStages(nodes,renderState):
     # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
     # nodes are only processed when all nodes above them have been processed.
     
-    activeOutputs=set() # set of activeNodes that are needed because they produce output values
+    # set of activeNodes that are needed because they produce output values
+    activeOutputs=collections.defaultdict(set)
     
     # linksStatus defaults to false for all links
     linkStatus=collections.defaultdict(lambda:False)
@@ -380,10 +374,12 @@ def makeStage(name,nodes,renderState):
                 linkToSource[link]=a
             
             if a.isOutPut():
-                activeOutputs.add(a)
-
+                activeOutputs[a.stage].add(a)
+    
+    return (makeStage(name,sortedActive,outputs,linkToSource) for name,outputs in activeOutputs.iteritems())
+    
+def makeStage(name,sortedActive,activeOutputs,linkToSource):
     # walk upward to find all needed nodes
-
     neededSet=set(activeOutputs)
     neededNodes=[]
     
@@ -451,38 +447,41 @@ class StageBuilder(object):
         """
         links=list of links passed to Node's function. Contains in and out ones.
         """
-        
-        inputs=node.getShaderInputs()
-        outputs=node.getShaderOutputs()
-        self.inputs.update(inputs)
-        self.outputs.update(outputs)
-        
-        inLinks=node.getInLinks()
-        outLinks=node.getOutLinks()
-        
-        for link in itertools.chain(inLinks,outLinks):
-            self._addLink(link)
+        if isinstance(node,nodes.ActiveOutput):
+            self._addLink(node.inLink)
+            o=node.shaderOutput
+            self.outputs.add(o)
+            code=o.getName()+"="+self.links.getItems()[node.inLink]+";"
+            self.sourceLines.append(code)
+        else:
+            inputs=node.getShaderInputs()
+            self.inputs.update(inputs)
             
-        ld=self.links.getItems()
-        
-        paramChain=itertools.chain(
-            (s.getName() for s in inputs),
-            (s.getName() for s in outputs),
-            (ld[s] for s in itertools.chain(inLinks,outLinks)),
-            )
-        
-        fname=functionNamer.nextName()        
-        callSource=fname+"("+",".join(paramChain)+");"
-        self.sourceLines.append(callSource)
-        
-        # make the function
-        f="void "+fname+node.getCode()
-        
-        if debugText:
-            comment="//"+node.getComment()
-            f=comment+'\n'+f
-            self.sourceLines.append('\n'+comment)
-        functionNamer.addItem(f)
+            inLinks=node.getInLinks()
+            outLinks=node.getOutLinks()
+            
+            for link in itertools.chain(inLinks,outLinks):
+                self._addLink(link)
+                
+            ld=self.links.getItems()
+            
+            paramChain=itertools.chain(
+                (s.getName() for s in inputs),
+                (ld[s] for s in itertools.chain(inLinks,outLinks)),
+                )
+            
+            fname=functionNamer.nextName()        
+            callSource=fname+"("+",".join(paramChain)+");"
+            self.sourceLines.append(callSource)
+            
+            # make the function
+            f="void "+fname+node.getCode()
+            
+            if debugText:
+                comment="//"+node.getComment()
+                f=comment+'\n'+f
+                self.sourceLines.append('\n'+comment)
+            functionNamer.addItem(f)
         
         
     def generateSource(self,name):
