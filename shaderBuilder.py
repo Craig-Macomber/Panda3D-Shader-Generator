@@ -364,8 +364,7 @@ class ShaderBuilder(object):
         
         if debugGraphPath:
             debugGraphPath+=str(len(self.casheByStages))
-        
-        print "debugGraphPath",debugGraphPath
+            
         stages=makeStages(self.nodes,renderState,debugGraphPath)
         
         stages=frozenset(stages)
