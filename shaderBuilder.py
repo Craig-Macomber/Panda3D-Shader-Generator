@@ -48,6 +48,9 @@ if they don't need dynamic generation
 
 TODO :
 auto generate semantics?
+
+TODO :
+fix generator graph node text for first line (line 1)
 """
 
 

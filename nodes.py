@@ -343,6 +343,29 @@ class HasTag(SingleOutputMixin,ScriptNode):
     def setupRenderStateFactory(self,renderStateFactory):
         renderStateFactory.tags.add(self.tagName)
 
+
+
+@reg
+class HasFlag(SingleOutputMixin,ScriptNode):
+    """
+    this node produces no activeNode, but marks it's outlink as active if the tag is present
+    """
+    def __init__(self,flagName):
+        ScriptNode.__init__(self)
+        assertString(flagName)
+        self.flagName=flagName
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNodes(self,renderState,linkStatus):
+        if renderState.hasFlag(self.flagName):
+            linkStatus[self.outLink] = True
+        return ()
+            
+    def setupRenderStateFactory(self,renderStateFactory):
+        renderStateFactory.flags.add(self.flagName)
+
+
 @reg
 class ConditionalPassThrough(SingleOutputMixin,ScriptNode):
     def __init__(self,conditionLink,dataLink):

@@ -20,12 +20,13 @@ def _getShaderAtrib(renderState):
 
 
 class Manager(object):
-    def __init__(self,builder,renderStateFactory=None,debugPath=None):
+    def __init__(self,builder,renderStateFactory=None,debugPath=None,flags=()):
         self.builder=builder
         self.renderStateFactory=builder.setupRenderStateFactory(renderStateFactory)
         self.debugPath=debugPath
-    def makeShader(self,pandaNode,pandaRenderState=None,geomVertexFormat=None,debugCodePrefix=None,debugGraphPrefix=None):
-        genRenderState=self.renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat)
+        self.flags=set(flags)
+    def makeShader(self,pandaNode,pandaRenderState=None,geomVertexFormat=None,debugCodePrefix=None,debugGraphPrefix=None,extraFlags=()):
+        genRenderState=self.renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat,self.flags|set(extraFlags))
         debugPath=None
         debugGraphPath=None
         if self.debugPath is not None:
