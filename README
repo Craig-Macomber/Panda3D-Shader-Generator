@@ -1,6 +1,10 @@
 A shader generator for Panda3D
 Specifically, a Shader Meta-Language for implementing, customizing and extending shader generators.
 
+Outputting visual graphs requires pydot and graphviz to be installed.
+
+Some example use in the shader tutorial here: https://github.com/Craig-Macomber/Shader-Tut
+
 Goals:
 - Allow coders to provide all possible shader effects (no restrictions on shader code, stages used, inputs, outputs etc) (Done)
 - Allow easy realtime configuration and tuning of effects (accessible to artists and coders) (Not started, not longer emphasized)

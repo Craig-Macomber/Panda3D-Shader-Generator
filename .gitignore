@@ -1,2 +1,4 @@
 *.pyc
 ShadersOut/*.sha
+ShadersOut/*.svg
+graph/*.svg

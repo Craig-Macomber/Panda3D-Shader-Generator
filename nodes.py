@@ -26,6 +26,11 @@ class Link(object):
     def getName(self): return self.name
     def __repr__(self):
         return "Link"+str(tuple([self.dataType,self.name]))
+    def __str__(self):
+        name=self.getName()
+        text=self.getType()
+        if name != "Unnamed":text=text+" "+name
+        return text
         
 
 class ActiveNode(object):
@@ -192,9 +197,9 @@ class CodeNode(AllActiveNode):
     """
     base class for nodes that fixed contain arbitrary code
     """
-    def __init__(self,source,shaderInputs,inLinks,outLinks,isOutPut,stage=None):
+    def __init__(self,source,shaderInputs,inLinks,outLinks,isOutPut,stage=None,comment="CodeNode"):
         self.source=source
-        activeNode=ActiveNode(tuple(shaderInputs),tuple(inLinks),tuple(outLinks),self.source,isOutPut,"CodeNode",stage)
+        activeNode=ActiveNode(tuple(shaderInputs),tuple(inLinks),tuple(outLinks),self.source,isOutPut,comment,stage)
         AllActiveNode.__init__(self,activeNode,*inLinks)
     def getLink(self,name):
         for link in self.activeNode.getOutLinks():
@@ -208,7 +213,7 @@ class CodeNode(AllActiveNode):
         else:
             raise LinkError("This node has no default link because it has no outputs")
             
-def metaCodeNode(source,shaderInputs,inLinks,outLinks,isOutPut=False,stage=None):
+def metaCodeNode(name,source,shaderInputs,inLinks,outLinks,isOutPut=False,stage=None):
     """
     makes a usable CodeNode for the specified source and I/O
     """
@@ -225,7 +230,7 @@ def metaCodeNode(source,shaderInputs,inLinks,outLinks,isOutPut=False,stage=None)
                 if t0!=t1:
                     raise LinkError("Error: mismatched type on inLinks. Got: "+t1+" expected: "+t0)
             newOutLinks=(Link(link.getType(),link.name) for link in outLinks)
-            CodeNode.__init__(self,fullSource,shaderInputs,inLinks_,newOutLinks,isOutPut,stage)
+            CodeNode.__init__(self,fullSource,shaderInputs,inLinks_,newOutLinks,isOutPut,stage,"CodeNode: "+name)
             
     return CustomCodeNode
 

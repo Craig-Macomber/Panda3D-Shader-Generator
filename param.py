@@ -39,6 +39,7 @@ class Param(object):
     def getName(self): return self.name
     def getType(self): return self.type
     def __repr__(self): return self.__class__.__name__+"("+self.name+", "+self.type+")"
+    def __str__(self): return self.type+" "+self.name
     def __hash__(self):
         return hash(self.name)^hash(self.type)
     def __eq__(self,other):
@@ -53,7 +54,12 @@ class ShaderParam(Param):
     def __eq__(self,other):
         return Param.__eq__(self,other) and self.semantic==other.semantic
     def getShortType(self): return self.type.split()[-1]
-    
+    def __str__(self):
+        s=Param.__str__(self)
+        if self.semantic:
+            return s+" : "+self.semantic
+        else:
+            return s
 class ShaderInput(ShaderParam): pass
 class ShaderOutput(ShaderParam): pass
 

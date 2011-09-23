@@ -6,6 +6,8 @@ import renderState
 import param
 import nodes
 
+import inspect
+
 from panda3d.core import Shader
 
 """
@@ -45,11 +47,7 @@ or one could pregenerate shaders and store them with their models in a cache
 if they don't need dynamic generation
 
 TODO :
-generate matching semantics
-
-TODO:
-Process stages in order, provide outputs of previous stages an inputs (use link status?)
-
+auto generate semantics?
 """
 
 
@@ -125,16 +123,23 @@ class NodeWrapper(object):
     """
     A wrapper around a node,
     intended to be returned as a node in script files
+    
+    sourceTracker is an optional debug dict for link to source scriptNode tracking
     """
-    def __init__(self,scriptNode):
+    def __init__(self,scriptNode,sourceTracker=None):
         self._scriptNode=scriptNode
+        self.sourceTracker=sourceTracker
     def __getattr__(self,name):
-        return self._scriptNode.getLink(name)
+        link=self._scriptNode.getLink(name)
+        if self.sourceTracker is not None: self.sourceTracker[link]=self._scriptNode
+        return link
         
 
-def preprocessParam(param):
+def preprocessParam(param,sourceTracker=None):
     if isinstance(param,NodeWrapper):
-        return preprocessParam(param._scriptNode.getDefaultLink())
+        link=param._scriptNode.getDefaultLink()
+        if sourceTracker is not None: sourceTracker[link]=param._scriptNode
+        return link
     else:
         return param
 
@@ -218,7 +223,7 @@ class Library(object):
                                         if "code" in items:
                                             code="\n".join(items["code"])
                                         
-                                        node=nodes.metaCodeNode(code,shaderInputs,inLinks,outLinks,isOutPut=isOutPut,stage=stage)
+                                        node=nodes.metaCodeNode(name,code,shaderInputs,inLinks,outLinks,isOutPut=isOutPut,stage=stage)
                                         if name in self.nodeTypeClassMap:
                                             print "Warning: overwriting node "+repr(self.nodeTypeClassMap[name])+" with "+repr(node)+" from "+currentFile
                                         self.nodeTypeClassMap[name]=node
@@ -234,35 +239,73 @@ class Library(object):
     
 
     
-    def loadScript(self,path):
-        return ShaderBuilder(self.parseScript(path),self.libSource)
+    def loadScript(self,path,viewGraph=False):
+        return ShaderBuilder(self.parseScript(path,viewGraph),self.libSource)
     
-    def parseScript(self,path):
+    def parseScript(self,path,viewGraph=False):
         # setup some globals with the names of the Node classes in self.nodeTypeClassMap
         globals={}
+        if viewGraph:
+            nodeInfoDict={}
+            sourceTracker={}
+        else:
+            sourceTracker=None
+        
         for name,nodeType in self.nodeTypeClassMap.iteritems():
             
             # this closure is the auctual item put into the globals for the script
             # it poses as a Node class, but produces NodeWrappers instead of Nodes,
             # and also runs preprocessParam on all passed arguments
             def wrapperMaker(name,nodeType):
-                def scriptNodeWrapper(*args,**kargs):
-                    pargs=[preprocessParam(param) for param in args]
+                def scriptNodeWrapper(*args,**kargs):    
+                    pargs=[preprocessParam(param,sourceTracker) for param in args]
                     for name,param in kargs.iteritems():
                         kargs[name]=preprocessParam(param)
                     node=nodeType(*pargs,**kargs)
-                    nodes.append(node)
-                    return NodeWrapper(node)
+                    nodeList.append(node)
+                    if viewGraph:
+                        stack=inspect.stack()
+                        frame, filename, lineNum, functionName, contextLines, contextIndex=stack[1]
+                        debugInfo=(filename, lineNum, contextLines[contextIndex].rstrip(), pargs, kargs)
+                        nodeInfoDict[node]=debugInfo
+                    return NodeWrapper(node,sourceTracker)
                 return scriptNodeWrapper
             globals[name]=wrapperMaker(name,nodeType)
         
         
         # run the script with the newly made globals
         locals={}
-        nodes=[]
+        nodeList=[]
         execfile(path,globals,locals)
-        return nodes
         
+        if viewGraph:
+            import pydot
+            
+            graph = pydot.Dot(graph_type='digraph')
+                
+            for node,info in nodeInfoDict.iteritems():
+                filename, lineNum, line, pargs, kargs=info
+                graph.add_node(pydot.Node(strId(node), label=str(lineNum)+": "+line, shape="rectangle"))
+                for a in pargs:
+                    if isinstance(a,nodes.Link):
+                        e = pydot.Edge( strId(sourceTracker[a]),strId(node), label=str(a) )
+                        graph.add_edge(e)
+                for name,a in kargs.iteritems():
+                    if isinstance(a,nodes.Link):
+                        e = pydot.Edge( strId(sourceTracker[a]),strId(node), label=name+"="+str(a))
+                        graph.add_edge(e)
+            writeGraph(graph,path)
+            
+        return nodeList
+
+
+def strId(obj): return str(id(obj))
+
+def writeGraph(graph,path):
+    format="svg"
+    finalPath=path+"."+format
+    print 'Making Graph: '+finalPath
+    graph.write(finalPath,format=format)
         
 class ShaderBuilder(object):
     """
@@ -296,7 +339,7 @@ class ShaderBuilder(object):
         return factory
         
         
-    def getShader(self,renderState,debugFile=None,noChache=False):
+    def getShader(self,renderState,debugFile=None,noChache=False,debugGraphPath=None):
         """
         
         returns a shader appropriate for the passed RenderState
@@ -311,12 +354,19 @@ class ShaderBuilder(object):
         
         """
         
+        
+        
         shader=self.cache.get(renderState)
         if shader and not noChache:
             #if debugFile: print "Shader is cached (renderState cache). Skipping generating shader to: "+debugFile
             return shader
-
-        stages=makeStages(self.nodes,renderState)
+        
+        
+        if debugGraphPath:
+            debugGraphPath+=str(len(self.casheByStages))
+        
+        print "debugGraphPath",debugGraphPath
+        stages=makeStages(self.nodes,renderState,debugGraphPath)
         
         stages=frozenset(stages)
         shader=self.casheByStages.get(stages)
@@ -353,7 +403,7 @@ class ShaderBuilder(object):
 
 
 
-def makeStages(nodes,renderState):
+def makeStages(nodes,renderState,debugGraphPath=None):
     # process from top down (topological sorted order) to see what part of graph is active, and produce active graph
     # nodes are only processed when all nodes above them have been processed.
     
@@ -375,10 +425,12 @@ def makeStages(nodes,renderState):
             
             if a.isOutPut():
                 activeOutputs[a.stage].add(a)
+    path=None
+    for name,outputs in activeOutputs.iteritems():
+        if debugGraphPath: path=debugGraphPath+name
+        yield makeStage(name,sortedActive,outputs,linkToSource,path)
     
-    return (makeStage(name,sortedActive,outputs,linkToSource) for name,outputs in activeOutputs.iteritems())
-    
-def makeStage(name,sortedActive,activeOutputs,linkToSource):
+def makeStage(name,sortedActive,activeOutputs,linkToSource,debugGraphPath=None):
     # walk upward to find all needed nodes
     neededSet=set(activeOutputs)
     neededNodes=[]
@@ -389,6 +441,23 @@ def makeStage(name,sortedActive,activeOutputs,linkToSource):
             for link in n.getInLinks():
                 neededSet.add(linkToSource[link])
 
+    if debugGraphPath:
+        import pydot
+            
+        graph = pydot.Dot(graph_type='digraph')
+        
+            
+        for node in neededSet:
+            if isinstance(node,nodes.ActiveOutput):
+                n=pydot.Node(strId(node), label=node.stage+" Output: "+str(node.shaderOutput), shape="rectangle")
+            else:
+                n=pydot.Node(strId(node), label=node.getComment(), shape="rectangle")
+            graph.add_node(n)
+            for link in node.getInLinks():
+                e = pydot.Edge( strId(linkToSource[link]),strId(node), label=str(link) )
+                graph.add_edge(e)
+        
+        writeGraph(graph,debugGraphPath)
 
     return makeStageFromActiveNodes(name,tuple(neededNodes))
         

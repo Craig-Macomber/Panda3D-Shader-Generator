@@ -1,10 +1,7 @@
-from panda3d.core import loadPrcFileData
+from panda3d.core import loadPrcFileData,NodePath
 loadPrcFileData("","notify-level-gobj debug")
 
-from shaderBuilder import *
+import manager
 
-lib=Library(["library"])
-
-builder=lib.loadScript("graph/lit.gen")
-
-s = builder.getShader(None,"ShadersOut/debug.sha")
+shaderManager=manager.getManager(["library"],"graph/basic.gen")
+shader=shaderManager.makeShader(NodePath(""))
