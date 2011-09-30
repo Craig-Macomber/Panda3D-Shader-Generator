@@ -237,10 +237,10 @@ def metaCodeNode(name,source,shaderInputs,inLinks,outLinks,isOutPut=False,stage=
 
 def makePassThroughCode(type,backwards=False):
     if backwards:
-        s="(out {t} ouput,in {t} input)"
+        s="(out {0} ouput,in {0} input)"
     else:
-        s="(in {t} input,out {t} ouput)"
-    return s.replace("{t}",type)+"{ouput=input;}"
+        s="(in {0} input,out {0} ouput)"
+    return s.format(type)+"{ouput=input;}"
     
 class SingleOutputMixin(object):
     def __init__(self,outLink):
