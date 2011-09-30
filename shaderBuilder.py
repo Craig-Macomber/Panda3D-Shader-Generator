@@ -410,14 +410,23 @@ def makeStages(nodes,renderState,debugGraphPath=None):
     # nodes are only processed when all nodes above them have been processed.
     
     # set of activeNodes that are needed because they produce output values
+    # maps stage to its set of outputs
     activeOutputs=collections.defaultdict(set)
     
-    # linksStatus defaults to false for all links
+    # linksStatus defaults to false for all links.
+    # a linkStatus for links (edges) in the active graph may be associated with the link
+    # by the node that outputs it when generated.
+    # generally false means inactive/not available, and true means available/active
+    # though some nodes may use the status differently
     linkStatus=collections.defaultdict(lambda:False)
+    
+    # dict mapping links to the activeNode that outputs them
     linkToSource={}
     
+    # list of active nodes, in the same order as source nodes, which should be topologically sorted
     sortedActive=[]
     
+    # traverse nodes, filling in data-structures inited above.
     for n in nodes:
         aa=n.getActiveNodes(renderState,linkStatus)
         for a in aa:
@@ -427,13 +436,16 @@ def makeStages(nodes,renderState,debugGraphPath=None):
             
             if a.isOutPut():
                 activeOutputs[a.stage].add(a)
+    
+    # yield the resulting stages.
     path=None
     for name,outputs in activeOutputs.iteritems():
         if debugGraphPath: path=debugGraphPath+name
         yield makeStage(name,sortedActive,outputs,linkToSource,path)
     
 def makeStage(name,sortedActive,activeOutputs,linkToSource,debugGraphPath=None):
-    # walk upward to find all needed nodes
+    # walk upward from outputs to find nodes the current stage requires recusrivly (aka needed nodes)
+    
     neededSet=set(activeOutputs)
     neededNodes=[]
     
