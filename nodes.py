@@ -211,7 +211,7 @@ class CodeNode(AllActiveNode):
         if len(links)>0:
             return links[0]
         else:
-            raise LinkError("This node has no default link because it has no outputs")
+            raise LinkError("This node ("+self.activeNode.comment+") has no default link because it has no outputs")
             
 def metaCodeNode(name,source,shaderInputs,inLinks,outLinks,isOutPut=False,stage=None):
     """
