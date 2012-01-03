@@ -9,6 +9,8 @@ import nodes
 import inspect
 
 from panda3d.core import Shader
+from direct.showbase.AppRunnerGlobal import appRunner
+isP3d=bool(appRunner)
 
 """
 
@@ -54,7 +56,11 @@ fix generator graph node text for first line (line 1)
 """
 
 
-join=os.path.join
+from direct.stdpy import file
+def join(*paths):
+    if len(paths)>1 and paths[0]=='': return join(*paths[1:])
+    if len(paths)==1: return paths[0]
+    return reduce(file.join,paths)
 
 
 debugText=True
@@ -247,7 +253,7 @@ class Library(object):
     
     def parseScript(self,path,viewGraph=False):
         # setup some globals with the names of the Node classes in self.nodeTypeClassMap
-        globals={}
+        scriptGlobals={}
         if viewGraph:
             nodeInfoDict={}
             sourceTracker={}
@@ -256,7 +262,7 @@ class Library(object):
         
         for name,nodeType in self.nodeTypeClassMap.iteritems():
             
-            # this closure is the auctual item put into the globals for the script
+            # this closure is the auctual item put into the scriptGlobals for the script
             # it poses as a Node class, but produces NodeWrappers instead of Nodes,
             # and also runs preprocessParam on all passed arguments
             def wrapperMaker(name,nodeType):
@@ -273,13 +279,17 @@ class Library(object):
                         nodeInfoDict[node]=debugInfo
                     return NodeWrapper(node,sourceTracker)
                 return scriptNodeWrapper
-            globals[name]=wrapperMaker(name,nodeType)
+            scriptGlobals[name]=wrapperMaker(name,nodeType)
         
         
-        # run the script with the newly made globals
-        locals={}
+        # run the script with the newly made scriptGlobals
         nodeList=[]
-        execfile(path,globals,locals)
+        
+        if isP3d:
+            # don't use execfile since this works easier within p3d files
+            exec open(path).read() in scriptGlobals
+        else:
+            execfile(path,scriptGlobals,{})
         
         if viewGraph:
             import pydot
