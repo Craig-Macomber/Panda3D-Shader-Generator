@@ -58,11 +58,13 @@ fix generator graph node text for first line (line 1)
 
 from direct.stdpy import file
 def join(*paths):
+    """ an join function for file paths that works in p3d, and regular file systems"""
     if len(paths)>1 and paths[0]=='': return join(*paths[1:])
     if len(paths)==1: return paths[0]
     return reduce(file.join,paths)
 
 
+# if true, adds comments to generated source to aid debugging
 debugText=True
         
 
@@ -144,7 +146,7 @@ class NodeWrapper(object):
         return link
         
 
-def preprocessParam(param,sourceTracker=None):
+def _preprocessParam(param,sourceTracker=None):
     if isinstance(param,NodeWrapper):
         link=param._scriptNode.getDefaultLink()
         if sourceTracker is not None: sourceTracker[link]=param._scriptNode
@@ -249,9 +251,12 @@ class Library(object):
 
     
     def loadScript(self,path,viewGraph=False):
-        return ShaderBuilder(self.parseScript(path,viewGraph),self.libSource)
+        """
+        loads a generater script at path, returns a ShaderBuilder
+        """
+        return ShaderBuilder(self._parseScript(path,viewGraph),self.libSource)
     
-    def parseScript(self,path,viewGraph=False):
+    def _parseScript(self,path,viewGraph=False):
         # setup some globals with the names of the Node classes in self.nodeTypeClassMap
         scriptGlobals={}
         if viewGraph:
@@ -264,12 +269,12 @@ class Library(object):
             
             # this closure is the auctual item put into the scriptGlobals for the script
             # it poses as a Node class, but produces NodeWrappers instead of Nodes,
-            # and also runs preprocessParam on all passed arguments
+            # and also runs _preprocessParam on all passed arguments
             def wrapperMaker(name,nodeType):
                 def scriptNodeWrapper(*args,**kargs):    
-                    pargs=[preprocessParam(param,sourceTracker) for param in args]
+                    pargs=[_preprocessParam(param,sourceTracker) for param in args]
                     for name,param in kargs.iteritems():
-                        kargs[name]=preprocessParam(param)
+                        kargs[name]=_preprocessParam(param)
                     node=nodeType(*pargs,**kargs)
                     nodeList.append(node)
                     if viewGraph:
@@ -305,15 +310,17 @@ class Library(object):
                         graph.add_edge(e)
                 for name,a in kargs.iteritems():
                     if isinstance(a,nodes.Link):
-                        e = pydot.Edge( strId(sourceTracker[a]),strId(node), label=name+"="+str(a))
+                        e = pydot.Edge(strId(sourceTracker[a]),strId(node), label=name+"="+str(a))
                         graph.add_edge(e)
             writeGraph(graph,path)
             
         return nodeList
 
 
+# a little helper for naming stuff in viewGraph's graphs
 def strId(obj): return str(id(obj))
 
+# writes out a graph in the chosen format (svg for now)
 def writeGraph(graph,path):
     format="svg"
     finalPath=path+"."+format
@@ -346,6 +353,10 @@ class ShaderBuilder(object):
         
     
     def setupRenderStateFactory(self,factory=None):
+        """
+        configures and returns a RenderStateFactory (see renderState.RenderStateFactory)
+        for this ShaderBuilder. Use it to get renderstates for getShader
+        """
         if factory is None: factory=renderState.RenderStateFactory()
         for n in self.nodes:
             n.setupRenderStateFactory(factory)
@@ -478,7 +489,7 @@ def makeStage(name,sortedActive,activeOutputs,linkToSource,debugGraphPath=None):
                 n=pydot.Node(strId(node), label=node.getComment(), shape="rectangle")
             graph.add_node(n)
             for link in node.getInLinks():
-                e = pydot.Edge( strId(linkToSource[link]),strId(node), label=str(link) )
+                e = pydot.Edge(strId(linkToSource[link]),strId(node), label=str(link) )
                 graph.add_edge(e)
         
         writeGraph(graph,debugGraphPath)

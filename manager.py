@@ -1,5 +1,12 @@
 """
 some usage assistance stuff resides here.
+
+the majority of users of this shader generator system
+should only call into this file. It provides all needed interfaces
+for basic use.
+
+For more advanced usage, the code here serves as an example.
+
 """
 from panda3d.core import ShaderAttrib
 import shaderBuilder
@@ -26,6 +33,7 @@ class Manager(object):
         self.debugPath=debugPath
         self.flags=set(flags)
     def makeShader(self,pandaNode,pandaRenderState=None,geomVertexFormat=None,debugCodePrefix=None,debugGraphPrefix=None,extraFlags=()):
+        """ generate and return (but not apply) a shader """
         genRenderState=self.renderStateFactory.getRenderState(pandaNode,pandaRenderState,geomVertexFormat,self.flags|set(extraFlags))
         debugPath=None
         debugGraphPath=None
@@ -35,7 +43,7 @@ class Manager(object):
         return self.builder.getShader(genRenderState,debugPath,debugGraphPath=debugGraphPath)
     
     def genShaders(self,node,debugCodePrefix=None,debugGraphPrefix=None):
-        """ walk all geoms and generate shaders for them """
+        """ walk all geoms and apply generateed shaders for them """
         nn=node.node()
         if nn.isGeomNode():
             for i,renderState in enumerate(nn.getGeomStates()):
