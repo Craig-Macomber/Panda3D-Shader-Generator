@@ -519,24 +519,27 @@ class HasColumn(SingleOutputMixin,ScriptNode):
 
 @reg
 class Select(SingleOutputMixin,ScriptNode):
+    """
+    Passes through the dataLinkA input if conditionLink is true, else dataLinkB
+    """
     def __init__(self,conditionLink,dataLinkA,dataLinkB):
         ScriptNode.__init__(self)
         assertLink(conditionLink)
         assertEqual(dataLinkA.getType(),dataLinkB.getType())
         self.conditionLink=conditionLink
-        self.dataLinkA=dataLinkA
-        self.dataLinkB=dataLinkB
+        self.dataLinks=(dataLinkA,dataLinkB)
         type=dataLinkA.getType()
         outLink=Link(type)
         source=makePassThroughCode(type)
-        self.activeNodeA=ActiveNode((),(dataLinkA,),(outLink,),source,False,"SelectA")
-        self.activeNodeB=ActiveNode((),(dataLinkB,),(outLink,),source,False,"SelectB")
+        self.activeNodes=(
+                ActiveNode((),(dataLinkA,),(outLink,),source,False,"SelectA"),
+                ActiveNode((),(dataLinkB,),(outLink,),source,False,"SelectB")
+                )
         SingleOutputMixin.__init__(self,outLink)
         
     def getActiveNodes(self,renderState,linkStatus):
-        linkStatus[self.outLink] = True
-        if linkStatus[self.conditionLink]:
-            return (self.activeNodeA,)
-        else:
-            return (self.activeNodeB,)
-            
+        source=0 if linkStatus[self.conditionLink] else 1
+        if linkStatus[self.dataLinks[source]]:
+            linkStatus[self.outLink] = True
+            return (self.activeNodes[source],)
+        return ()
