@@ -1,6 +1,30 @@
 A shader generator for Panda3D
 Specifically, a Shader Meta-Language for implementing, customizing and extending shader generators.
 
+Target Users
+============
+This is a common area of confusion, so to be clear:
+This system is intended for advanced shader programmers.
+If you find yourself struggling with maintaining many different but related shader files,
+this may be a tool for you. If you want to have a special shader for each combination or several atributes
+generated from a single set of shader code, this is the tool for you.
+
+Example: Some of my models (or even parts of models) have textures.
+Some have model colors. Some have material colors. Some have normal maps. I can use this tool
+to define a shader generator to handle all possible combinations of these correctly.
+
+It can even handle adjusting shaders based on tags placed on models, available vertex data columns, textures, and global flags.
+More custom controls can also be added, though I think tags are general enough to cover most special needs.
+
+Example: I have several adjustable settings, such as enabling deferred shading and cartoon inking. 
+Using the flags feature, my generator can be designed to reorder and change the shaders to act accordingly.
+In the deferred shading case, the lighting computation code can be shared between the deferred lighting pass shader,
+and the model shader for forward shading. For the cartoon inking,
+the inking code in the post process is simply omitted of its flag is off.
+
+This is very powerful, and very flexible, but it does not save writing the shader code!
+It simply provides a way to avoid having to maintain and select between many related shaders.
+
 High level conceptual overview
 ==============================
 This is how it works, not a ussage guide.
@@ -99,3 +123,7 @@ The set of nodes that can be used in these graphs are the regestered classes fro
 
 Its possibe to add custom node types implemented in python, simply provide them when instancting the shaderBuilder.Library
 
+This system currently does not modify render states, add filters or any other changes to the scene graph.
+It just generates shaders. It assumes the scene graph will be setup separately.
+It would be possible to add in some scene graph modifying active nodes that would be collected while generating the shader, and then applied along with the shader (by passing the node to the apply method of each).
+This can be made to work with the current cache system.
