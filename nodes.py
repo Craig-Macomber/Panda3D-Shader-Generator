@@ -322,6 +322,53 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
                     "FirstAvailable: choose #"+str(i)+" of "+str(len(self.links))),)
         return ()
 
+@reg
+class AllAvailable(SingleOutputMixin,LinksNode):
+    """
+    takes a list of inlinks, and outputs if they are all available 
+    """
+    def __init__(self,*inlinks):
+        LinksNode.__init__(self,*inlinks)
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNodes(self,renderState,linkStatus):
+        for input in self.links:
+            if not linkStatus[input]: return ()
+        linkStatus[self.outLink] = True
+        return ()
+
+@reg
+class AnyAvailable(SingleOutputMixin,LinksNode):
+    """
+    takes a list of inlinks, and outputs if they any are available 
+    """
+    def __init__(self,*inlinks):
+        LinksNode.__init__(self,*inlinks)
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNodes(self,renderState,linkStatus):
+        for input in self.links:
+            if linkStatus[input]:
+                linkStatus[self.outLink] = True
+        return ()
+
+@reg
+class NoneAvailable(SingleOutputMixin,LinksNode):
+    """
+    takes a list of inlinks, and outputs if they any are available 
+    """
+    def __init__(self,*inlinks):
+        LinksNode.__init__(self,*inlinks)
+        outLink=Link(boolLinkType)
+        SingleOutputMixin.__init__(self,outLink)
+        
+    def getActiveNodes(self,renderState,linkStatus):
+        for input in self.links:
+            if linkStatus[input]: return ()
+        linkStatus[self.outLink] = True
+        return ()
 
 @reg
 class HasTag(SingleOutputMixin,ScriptNode):
