@@ -319,7 +319,7 @@ class FirstAvailable(SingleOutputMixin,LinksNode):
             if linkStatus[input]:
                 linkStatus[self.outLink] = True
                 return (ActiveNode((),(input,),(self.outLink,),self.source,False,
-                    "FirstAvailable: choose #"+str(i)+" of "+str(len(self.links))),)
+                    "FirstAvailable: choose #"+str(i)+" (0-"+str(len(self.links)-1)+")"),)
         return ()
 
 @reg
