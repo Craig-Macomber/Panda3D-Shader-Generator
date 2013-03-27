@@ -178,7 +178,7 @@ class LinksNode(ScriptNode):
 @reg
 class AssertActiveNode(LinksNode):
     def getActiveNodes(self,renderState,linkStatus):
-        assert allActive(linkStatus,self.links)
+        assert allActive(linkStatus,self.links), "{0}: links:{1}".format(self,[link for link in self.links if not linkStatus[link]])
         return ()
         
 class AllActiveNode(LinksNode):
@@ -496,7 +496,7 @@ class Output(ScriptNode):
         return self.shaderInput.getDefaultLink()
         
     def getActiveNodes(self,renderState,linkStatus):
-        assert linkStatus[self.inlink]
+        assert linkStatus[self.inlink], "Output node '{out}'' must have active input '{input}'".format(out=self.shaderInput.activeNode,input=self.inlink)
         return (self.activeNode,self.shaderInput.getActiveNodes(renderState,linkStatus)[0])
 
 @reg

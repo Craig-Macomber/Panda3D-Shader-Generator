@@ -45,7 +45,8 @@ color = tex2D(tex, l_texcoord0);
 name directionalLight
 : shaderinputs
 uniform float4x4 dlight_dlight_to_model
-float3 l_normal : TEXCOORD2
+:inlinks
+float3 l_normal
 : outlinks
 float3 specularLight
 float3 diffuseLight

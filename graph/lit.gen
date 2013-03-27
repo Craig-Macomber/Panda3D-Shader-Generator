@@ -11,7 +11,7 @@ Output("vshader",vProj,"float4 l_position : POSITION")
 
 # pass the normals through to the fshader
 vNorm=Input("varying float3 vtx_normal: NORMAL")
-Output("vshader",vNorm,"float3 l_normal : TEXCOORD2")
+norm=Output("vshader",vNorm,"float3 l_normal : TEXCOORD2")
 
 # uv
 vert_uv=Input("float2 vtx_texcoord0 : TEXCOORD0")
@@ -29,28 +29,32 @@ viewPos=Output("vshader",vert_viewPos,"float4 l_vpos : TEXCOORD1")
 _tex=Input("uniform sampler2D tex_0 : TEXUNIT0")
 # is there a texture?
 hasTex=HasTextureAttrib()
-# make tex avaliable only if there is a texture
+# make tex available only if there is a texture
 tex=ConditionalPassThrough(hasTex,_tex)
 # sample the texture. These are simple code nodes, which
 # means their output is available if all their inputs are
-# so there is a diffuse color only when tex is avalaible
+# so there is a diffuse color only when tex is available
 diffuseColor4=sampleTexure(tex,uv)
 diffuseColor=float4To3(diffuseColor4)
 
 # apply lighting
-dlight=directionalLight()
+dlight=directionalLight(norm)
+alight4=Input("uniform float4 alight_alight")
+alight=float4To3(alight4)
 # the boolean here is is the requireAll value.
-# False means to apply the operater to all available inputs
-diffuse=Operator(False,"*",diffuseColor,dlight.diffuseLight)
+# False means to apply the operator to all available inputs
+diffuseLighting=Operator(False,"+",dlight.diffuseLight,alight)
+
+diffuse=Operator(False,"*",diffuseColor,diffuseLighting)
 lighting=Operator(True,"+",diffuse,dlight.specularLight)
 
 # apply come crummy fog
-fogColor=Constant("float3","float3(.7,.7,.8)")
-densityConstant=Constant("float","0.03")
-densityInput=ConditionalInput("uniform float4 k_fogDensity")
-densityInputFloat=float4To1(densityInput)
-density=FirstAvailable(densityInputFloat,densityConstant)
-fogged=fog(viewPos,lighting,fogColor,density)
+#fogColor=Constant("float3","float3(.7,.7,.8)")
+#densityConstant=Constant("float","0.03")
+#densityInput=ConditionalInput("uniform float4 k_fogDensity")
+#densityInputFloat=float4To1(densityInput)
+#density=FirstAvailable(densityInputFloat,densityConstant)
+#fogged=fog(viewPos,lighting,fogColor,density)
 
 # Output color
-Output("fshader",fogged,"float3 o_color: COLOR")
+Output("fshader",lighting,"float3 o_color: COLOR")
