@@ -419,7 +419,7 @@ class ShaderBuilder(object):
             fOut.write(source)
             fOut.close()
         
-        shader=Shader.make(source)
+        shader=Shader.make(source, Shader.SLCg)
         self.cache[renderState]=shader
         self.casheByStages[stages]=shader
         return shader
